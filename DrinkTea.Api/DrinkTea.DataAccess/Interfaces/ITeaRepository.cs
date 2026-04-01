@@ -28,4 +28,10 @@ public interface ITeaRepository
     /// <param name="transaction">Активная SQL-транзакция (Dapper).</param>
     /// <returns>True, если обновление прошло успешно.</returns>
     Task<bool> UpdateStockAsync(Guid teaId, decimal amount, IDbTransaction transaction);
+
+    /// <summary>
+    /// 	Получает полный список чая с актуальными остатками и ценами.
+    /// </summary>
+    /// <returns>	Список динамических объектов (данные из Teas + TeaPrices). </returns>
+    Task<IEnumerable<dynamic>> GetInventoryAsync();
 }

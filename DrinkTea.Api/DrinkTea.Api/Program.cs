@@ -32,6 +32,7 @@ builder.Services.AddScoped<ISaleRepository, SaleRepository>();
 builder.Services.AddScoped<BrewingService>();
 builder.Services.AddScoped<VisitService>();
 builder.Services.AddScoped<SaleService>();
+builder.Services.AddScoped<TeaService>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();

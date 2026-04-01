@@ -38,4 +38,29 @@ public class TeaRepository(DbConnectionFactory db) : ITeaRepository
 
         return rows > 0;
     }
+
+    public async Task<IEnumerable<dynamic>> GetInventoryAsync()
+    {
+        using var connection = db.CreateConnection();
+
+        // Используем оконную функцию DISTINCT ON, чтобы взять только САМУЮ СВЕЖУЮ цену для каждого чая
+        const string sql = @"
+		SELECT 
+			t.Id, 
+			t.Name, 
+			t.CurrentStock,
+			p.BrewPricePerGram as BrewPrice,
+			p.SalePricePerGram as SalePrice
+		FROM Teas t
+		LEFT JOIN LATERAL (
+			SELECT BrewPricePerGram, SalePricePerGram
+			FROM TeaPrices
+			WHERE TeaId = t.Id
+			ORDER BY CreatedAt DESC
+			LIMIT 1
+		) p ON TRUE
+		ORDER BY t.Name;";
+
+        return await connection.QueryAsync(sql);
+    }
 }
