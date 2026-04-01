@@ -16,10 +16,12 @@ builder.Services.AddSingleton<DbConnectionFactory>();
 builder.Services.AddScoped<ITeaRepository, TeaRepository>();
 builder.Services.AddScoped<IVisitRepository, VisitRepository>();
 builder.Services.AddScoped<IBrewingRepository, BrewingRepository>();
+builder.Services.AddScoped<ISaleRepository, SaleRepository>();
 
 // 3. Business Logic Layer
 builder.Services.AddScoped<BrewingService>();
 builder.Services.AddScoped<VisitService>();
+builder.Services.AddScoped<SaleService>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
