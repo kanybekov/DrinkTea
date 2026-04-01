@@ -4,72 +4,94 @@
 @inject HttpClient Http
 @inject NavigationManager Nav
 
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold"><i class="bi bi-cup-hot"></i> Зал</h2>
-        <button class="btn btn-success shadow-sm" @onclick='() => Nav.NavigateTo("/checkin")'>
-            <i class="bi bi-person-plus"></i> Новый гость
-        </button>
+<div class="container-fluid mt-4 px-4">
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ УПРАВЛЕНИЯ -->
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white shadow-sm rounded-3">
+        <div>
+            <h2 class="fw-bold m-0 text-dark"><i class="bi bi-shop text-success me-2"></i>Зал</h2>
+            <small class="text-muted">Активных визитов: @(activeVisits?.Count ?? 0)</small>
+        </div>
+        <div class="d-flex gap-2">
+            <!-- ОБЩАЯ КНОПКА ЗАВАРКИ (теперь обособлена) -->
+            <button class="btn btn-primary btn-lg shadow-sm px-4" @onclick='() => Nav.NavigateTo("/brewing/new")'>
+                <i class="bi bi-plus-circle me-2"></i>Новая заварка
+            </button>
+            
+            <!-- КНОПКА РЕГИСТРАЦИИ -->
+            <button class="btn btn-success btn-lg shadow-sm px-4" @onclick='() => Nav.NavigateTo("/checkin")'>
+                <i class="bi bi-person-plus me-2"></i>Новый гость
+            </button>
+        </div>
     </div>
 
     @if (errorMessage != null)
     {
-        <div class="alert alert-danger shadow-sm">
-            <i class="bi bi-exclamation-triangle"></i> @errorMessage
+        <div class="alert alert-danger shadow-sm border-0 border-start border-4 border-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @errorMessage
         </div>
     }
 
     @if (activeVisits == null)
     {
         <div class="text-center p-5">
-            <div class="spinner-border text-success" role="status"></div>
-            <p class="mt-2 text-muted">Загружаем список гостей из базы...</p>
+            <div class="spinner-border text-success" style="width: 3rem; height: 3rem;" role="status"></div>
+            <p class="mt-3 text-muted fw-bold">Считываем данные из зала...</p>
         </div>
     }
     else if (!activeVisits.Any())
     {
-        <div class="alert alert-light text-center border p-5 shadow-sm">
-            <h4 class="text-muted">В клубе сейчас никого нет</h4>
-            <p>Нажмите кнопку выше, чтобы открыть первый визит.</p>
+        <div class="card border-0 shadow-sm text-center py-5 bg-white rounded-4">
+            <div class="card-body">
+                <i class="bi bi-cup-straw text-light-emphasis display-1"></i>
+                <h3 class="text-muted mt-3">В клубе сейчас пусто</h3>
+                <p class="text-secondary">Нажмите "Новый гость", чтобы открыть первый счет.</p>
+            </div>
         </div>
     }
     else
     {
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        <!-- СЕТКА КАРТОЧЕК ГОСТЕЙ -->
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
             @foreach (var v in activeVisits)
             {
                 <div class="col">
-                    <div class="card h-100 shadow-sm border-0 border-start border-4 @(v.UnpaidDebt > 1000 ? "border-danger" : "border-success")">
+                    <div class="card h-100 shadow-sm border-0 border-top border-4 @(v.UnpaidDebt > 1500 ? "border-danger" : "border-success") rounded-3">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <h5 class="fw-bold text-primary">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h5 class="fw-bold text-truncate me-2" title="@(v.UserName ?? v.Note)">
+                                    <i class="bi bi-person-fill text-secondary me-1"></i>
                                     @(string.IsNullOrEmpty(v.UserName) ? v.Note : v.UserName)
                                 </h5>
                                 <span class="badge bg-light text-dark border">
-                                    @v.StartTime.ToShortTimeString()
+                                    <i class="bi bi-clock me-1"></i>@v.StartTime.ToShortTimeString()
                                 </span>
                             </div>
                             
-                            <div class="mt-3">
-                                <div class="small text-muted">Долг за чай:</div>
-                                <div class="h3 fw-bold @(v.UnpaidDebt > 0 ? "text-danger" : "")">
-                                    @v.UnpaidDebt ₽
+                            <div class="bg-light p-3 rounded-3 mb-2 text-center">
+                                <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">К оплате</div>
+                                <div class="h2 fw-bold m-0 @(v.UnpaidDebt > 0 ? "text-danger" : "text-dark")">
+                                    @v.UnpaidDebt.ToString("N0") ₽
                                 </div>
                             </div>
 
                             @if (v.UserDeposit.HasValue && v.UserDeposit.Value > 0)
                             {
-                                <div class="alert alert-success p-1 px-2 small mb-0 mt-2">
-                                    <i class="bi bi-wallet2"></i> Депозит: <b>@v.UserDeposit.Value ₽</b>
+                                <div class="text-center">
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                        <i class="bi bi-wallet2 me-1"></i>Баланс: @v.UserDeposit.Value.ToString("N0") ₽
+                                    </span>
                                 </div>
                             }
                         </div>
-                        <div class="card-footer bg-white border-0 d-flex gap-2 pb-3">
-                            <button class="btn btn-primary w-100" @onclick='() => Nav.NavigateTo($"/visit/{v.Id}")'>
-                                Чай
+                        <div class="card-footer bg-white border-0 pt-0 pb-3 px-3 d-flex gap-2">
+                            <!-- Кнопка "Детали" для просмотра что именно пил гость -->
+                            <button class="btn btn-outline-secondary w-100 btn-sm" @onclick='() => Nav.NavigateTo($"/visit/{v.Id}")'>
+                                <i class="bi bi-list-ul"></i> Чек
                             </button>
-                            <button class="btn btn-outline-success w-100" @onclick='() => Nav.NavigateTo($"/checkout/{v.Id}")'>
-                                Чек
+                            
+                            <!-- Кнопка быстрой оплаты -->
+                            <button class="btn btn-success w-100 btn-sm" @onclick='() => Nav.NavigateTo($"/checkout/{v.Id}")'>
+                                <i class="bi bi-cash-stack"></i> Оплата
                             </button>
                         </div>
                     </div>
@@ -93,14 +115,15 @@
         try
         {
             errorMessage = null;
-            // Важно: адрес должен соответствовать твоему контроллеру VisitsController
+            // Убедись, что API эндпоинт верный (VisitsController -> GetActive)
             activeVisits = await Http.GetFromJsonAsync<List<ActiveVisitDto>>("api/visits/active");
+            StateHasChanged();
         }
         catch (Exception ex)
         {
-            errorMessage = "Ошибка связи с API. Проверьте, запущен ли бэкенд и настройки CORS.";
-            activeVisits = new(); // Убираем индикатор загрузки
-            Console.WriteLine($"Ошибка десериализации или сети: {ex.Message}");
+            errorMessage = "Ошибка связи с API. Проверьте подключение.";
+            activeVisits = new();
+            Console.WriteLine($"Error: {ex.Message}");
         }
     }
 }

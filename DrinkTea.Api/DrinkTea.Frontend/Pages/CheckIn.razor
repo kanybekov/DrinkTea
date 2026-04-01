@@ -1,0 +1,74 @@
+﻿@page "/checkin"
+@using DrinkTea.Shared.Models.Requests
+@using DrinkTea.Shared.Models.Responses
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<div class="container mt-4" style="max-width: 500px;">
+    <div class="card shadow border-0 p-4">
+        <h3 class="fw-bold mb-4">Регистрация гостя</h3>
+
+        <div class="mb-3">
+            <label class="form-label text-muted">Выбрать клиента (если постоянный)</label>
+            <select class="form-select" @bind="request.UserId">
+                <option value="">-- Анонимный гость --</option>
+                @if (users != null)
+                {
+                    @foreach (var u in users)
+                    {
+                        <option value="@u.Id">@u.FullName (@u.Balance ₽)</option>
+                    }
+                }
+            </select>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label text-muted">Заметка / Номер стола</label>
+            <input @bind="request.Note" class="form-control form-control-lg" placeholder="Например: Стол 3" />
+        </div>
+
+        @if (error != null)
+        {
+            <div class="alert alert-danger">@error</div>
+        }
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-light flex-grow-1" @onclick='() => Nav.NavigateTo("/")'>Отмена</button>
+            <button class="btn btn-success flex-grow-1" @onclick="HandleCheckIn" disabled="@loading">
+                @if (loading)
+                {
+                    <span class="spinner-border spinner-border-sm"></span>
+                }
+                Открыть счет
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private CheckInRequest request = new();
+    private List<dynamic>? users; // Временно динамик для списка юзеров
+    private string? error;
+    private bool loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Загружаем список всех юзеров для выпадающего списка
+        try { users = await Http.GetFromJsonAsync<List<dynamic>>("api/users/list"); } catch { }
+    }
+
+    private async Task HandleCheckIn()
+    {
+        loading = true;
+        var response = await Http.PostAsJsonAsync("api/visits/checkin", request);
+        if (response.IsSuccessStatusCode)
+        {
+            Nav.NavigateTo("/");
+        }
+        else
+        {
+            error = "Ошибка. Возможно, гость уже в клубе.";
+        }
+        loading = false;
+    }
+}
