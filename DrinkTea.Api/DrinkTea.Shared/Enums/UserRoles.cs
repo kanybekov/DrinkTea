@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace DrinkTea.Domain.Enums
+namespace DrinkTea.Shared.Enums
 {
     public enum UserRoles
     {

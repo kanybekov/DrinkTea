@@ -1,6 +1,6 @@
 ﻿using Dapper;
 using DrinkTea.DataAccess.Interfaces;
-using DrinkTea.Domain.Common;
+using DrinkTea.Shared.Enums;
 using System.Data;
 
 namespace DrinkTea.DataAccess.Repositories;

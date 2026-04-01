@@ -1,4 +1,4 @@
-﻿namespace DrinkTea.Domain.Common;
+﻿namespace DrinkTea.Shared.Enums;
 
 /// <summary>
 /// 	Доступные способы оплаты в системе.

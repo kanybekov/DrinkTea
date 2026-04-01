@@ -1,7 +1,7 @@
 ﻿using DrinkTea.Api.Models.Requests;
 using DrinkTea.BL.Services;
-using DrinkTea.Domain.Common;
-using DrinkTea.Domain.Enums;
+using DrinkTea.Shared.Enums;
+using DrinkTea.Shared.Models.Requests;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -80,5 +80,3 @@ public class UsersController(UserService userService, UserContext userContext) :
     }
 }
 
-public record RegisterUserRequest(string FullName, string Login, string Password, UserRoles Role);
-public record TopUpRequest(decimal Amount, PaymentMethod Method);

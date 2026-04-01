@@ -1,4 +1,5 @@
-﻿using DrinkTea.Domain.Enums;
+﻿
+using DrinkTea.Shared.Enums;
 
 namespace DrinkTea.Domain.Entities;
 

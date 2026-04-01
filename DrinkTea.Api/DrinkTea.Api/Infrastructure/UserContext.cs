@@ -1,5 +1,5 @@
-﻿using System.Security.Claims;
-using DrinkTea.Domain.Enums;
+﻿using DrinkTea.Shared.Enums;
+using System.Security.Claims;
 
 public class UserContext(IHttpContextAccessor httpContextAccessor)
 {

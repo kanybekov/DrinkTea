@@ -3,4 +3,5 @@
   <Project Path="DrinkTea.Api/DrinkTea.Api.csproj" />
   <Project Path="DrinkTea.BL/DrinkTea.BL.csproj" Id="6fead40c-a418-410c-900e-b00fde14acea" />
   <Project Path="DrinkTea.DataAccess/DrinkTea.DataAccess.csproj" Id="94a3baec-8aae-4769-9da1-a86521dc42b7" />
+  <Project Path="DrinkTea.Shared/DrinkTea.Shared.csproj" Id="df454104-d209-4215-8098-6fcba078afc9" />
 </Solution>

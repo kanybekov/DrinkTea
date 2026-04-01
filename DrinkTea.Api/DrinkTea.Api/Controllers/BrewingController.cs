@@ -2,6 +2,8 @@
 using DrinkTea.BL.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using DrinkTea.Shared.Models.Requests;
+
 
 [ApiController]
 [Route("api/[controller]")]
@@ -87,10 +89,3 @@ public class BrewingController(BrewingService service) : ControllerBase
         return Ok(items);
     }
 }
-
-public record StartBrewingDto(Guid TeaId, decimal Grams, List<Guid> VisitIds);
-
-/// <summary>
-/// 	DTO для добавления участника.
-/// </summary>
-public record JoinSessionDto(Guid VisitId);

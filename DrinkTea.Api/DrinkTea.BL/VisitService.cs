@@ -1,6 +1,6 @@
 ﻿using DrinkTea.DataAccess;
 using DrinkTea.DataAccess.Interfaces;
-using DrinkTea.Domain.Common;
+using DrinkTea.Shared.Enums;
 using DrinkTea.Domain.Entities;
 using System.Data;
 

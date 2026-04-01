@@ -1,4 +1,4 @@
-﻿using DrinkTea.Domain.Common;
+﻿using DrinkTea.Shared.Enums;
 using System.Data;
 
 namespace DrinkTea.DataAccess.Interfaces;

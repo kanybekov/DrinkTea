@@ -1,6 +1,7 @@
 ﻿using DrinkTea.BL.Infrastructure;
 using DrinkTea.BL.Services;
 using Microsoft.AspNetCore.Mvc;
+using DrinkTea.Shared.Models.Requests;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -34,4 +35,3 @@ public class AuthController(AuthService authService, JwtProvider jwtProvider) : 
 
 }
 
-public record LoginRequest(string Username, string Password);

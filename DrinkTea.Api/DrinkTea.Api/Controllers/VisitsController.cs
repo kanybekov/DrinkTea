@@ -1,6 +1,7 @@
 ﻿using DrinkTea.Api.Models.Responses;
 using DrinkTea.BL.Services;
-using DrinkTea.Domain.Common;
+using DrinkTea.Shared.Enums;
+using DrinkTea.Shared.Models.Requests;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -129,6 +130,3 @@ public class VisitsController(VisitService visitService) : ControllerBase
     }
 }
 
-public record CheckInRequest(Guid? UserId, string? Note);
-
-public record CheckoutRequest(decimal InternalAmount, decimal ExternalAmount, PaymentMethod Method);
