@@ -1,0 +1,38 @@
+﻿@page "/login"
+@using DrinkTea.Shared.Models.Requests
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<div class="card shadow mx-auto mt-5" style="max-width: 400px;">
+    <div class="card-body">
+        <h3 class="text-center mb-4">DrinkTea</h3>
+        
+        <div class="mb-3">
+            <label>Логин</label>
+            <input @bind="request.Username" class="form-control" />
+        </div>
+        
+        <div class="mb-3">
+            <label>Пароль</label>
+            <input @bind="request.Password" type="password" class="form-control" />
+        </div>
+
+        <button class="btn btn-success w-100" @onclick="HandleLogin">Войти</button>
+    </div>
+</div>
+
+@code {
+    // Просто создаем экземпляр класса
+    private LoginRequest request = new();
+
+    private async Task HandleLogin()
+    {
+        // Отправляем тот же объект, в который юзер вводил данные
+        var response = await Http.PostAsJsonAsync("api/auth/login", request);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            Nav.NavigateTo("/dashboard");
+        }
+    }
+}

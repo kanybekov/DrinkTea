@@ -1,8 +1,8 @@
-﻿using DrinkTea.Api.Models.Responses;
-using DrinkTea.BL.Services;
+﻿using DrinkTea.BL.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DrinkTea.Shared.Models.Requests;
+using DrinkTea.Shared.Models.Responses;
 
 
 [ApiController]

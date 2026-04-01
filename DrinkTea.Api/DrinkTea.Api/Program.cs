@@ -46,6 +46,15 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// 1. В секции builder.Services
+builder.Services.AddCors(options => {
+    options.AddDefaultPolicy(policy => {
+        policy.AllowAnyOrigin() // Разрешаем всем (для теста)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 
 builder.Services.AddSingleton<JwtProvider>();
 
@@ -91,6 +100,8 @@ builder.Services.AddScoped<UserContext>();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+app.UseCors();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

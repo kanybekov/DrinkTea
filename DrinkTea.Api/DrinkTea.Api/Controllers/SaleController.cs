@@ -1,8 +1,8 @@
-﻿using DrinkTea.Api.Models.Requests;
-using DrinkTea.BL.Services;
+﻿using DrinkTea.BL.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DrinkTea.Shared.Enums;
+using DrinkTea.Shared.Models.Requests;
 
 [ApiController]
 [Route("api/[controller]")]

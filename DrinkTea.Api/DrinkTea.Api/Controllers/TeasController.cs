@@ -1,6 +1,6 @@
-﻿using DrinkTea.Api.Models.Requests;
-using DrinkTea.Api.Models.Responses;
-using DrinkTea.BL.Services;
+﻿using DrinkTea.BL.Services;
+using DrinkTea.Shared.Models.Requests;
+using DrinkTea.Shared.Models.Responses;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DrinkTea.Api.Controllers;
