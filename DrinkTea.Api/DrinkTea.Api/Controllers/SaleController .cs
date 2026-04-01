@@ -1,18 +1,28 @@
-﻿using DrinkTea.Api.Models.Requests;
+﻿using DrinkTea.Api.Infrastructure;
+using DrinkTea.Api.Models.Requests;
 using DrinkTea.BL.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("api/[controller]")]
-public class SaleController(SaleService saleService) : ControllerBase
+[Authorize(Roles = "Master")] // Только персонал может продавать
+public class SaleController(SaleService saleService, UserContext userContext) : ControllerBase
 {
-    /// <summary>
-    /// 	Провести розничную продажу чая.
-    /// </summary>
     [HttpPost]
     public async Task<IActionResult> MakeSale([FromBody] SaleRequest req)
     {
-        var resultId = await saleService.SellAsync(req.TeaId, req.Grams, req.PaymentMethod, req.UserId);
+        // Берем ID мастера из защищенного контекста (UserContext)
+        var currentStaffId = userContext.UserId;
+
+        var resultId = await saleService.SellAsync(
+            req.TeaId,
+            req.Grams,
+            req.PaymentMethod,
+            currentStaffId,
+            req.UserId);
+
         return Ok(new { SaleId = resultId });
     }
 }
+

@@ -20,7 +20,7 @@ public interface IBrewingRepository
     /// <param name="totalCost">	Общая стоимость всей сессии. </param>
     /// <param name="transaction">	Активная SQL-транзакция для атомарности операции. </param>
     /// <returns>	Идентификатор созданной сессии (SessionId). </returns>
-    Task<Guid> CreateSessionAsync(Guid teaId, Guid priceId, decimal grams, decimal totalCost, IDbTransaction transaction);
+    Task<Guid> CreateSessionAsync(Guid teaId, Guid priceId, decimal grams, decimal totalCost, Guid staffId, IDbTransaction transaction);
 
     /// <summary>
     /// 	Добавляет участника в сессию и фиксирует его финансовую долю.

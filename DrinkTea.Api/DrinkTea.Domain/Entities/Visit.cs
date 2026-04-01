@@ -32,4 +32,9 @@ public class Visit
     ///     Флаг завершения визита. После закрытия редактирование сумм запрещено.
     /// </summary>
     public bool IsClosed { get; set; }
+
+    /// <summary>
+    ///     Заметка мастера для идентификации гостя (например, "В шляпе").
+    /// </summary>
+    public string? Note { get; set; }
 }

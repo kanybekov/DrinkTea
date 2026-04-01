@@ -19,7 +19,7 @@ public class BrewingService(
     /// <param name="teaId">	Какой чай завариваем. </param>
     /// <param name="grams">	Сколько грамм кладем в гайвань/чайник. </param>
     /// <param name="visitIds">	Список открытых визитов участников. </param>
-    public async Task<Guid> StartBrewingAsync(Guid teaId, decimal grams, List<Guid> visitIds)
+    public async Task<Guid> StartBrewingAsync(Guid teaId, decimal grams, List<Guid> visitIds, Guid userId)
     {
         using var connection = db.CreateConnection();
         connection.Open();
@@ -40,7 +40,7 @@ public class BrewingService(
             decimal share = totalCost / visitIds.Count;
 
             // 4. Сохраняем сессию
-            var sessionId = await brewingRepo.CreateSessionAsync(teaId, price.Id, grams, totalCost, transaction);
+            var sessionId = await brewingRepo.CreateSessionAsync(teaId, price.Id, grams, totalCost, userId, transaction);
 
             // 5. Разносим доли по визитам
             foreach (var vId in visitIds)

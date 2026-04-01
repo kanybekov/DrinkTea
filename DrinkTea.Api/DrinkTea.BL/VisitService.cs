@@ -16,19 +16,17 @@ public class VisitService(
     /// <summary>
     /// 	Открывает новый визит, предотвращая дубликаты для постоянных клиентов.
     /// </summary>
-    public async Task<Visit> StartVisitAsync(Guid? userId)
+    public async Task<Visit> StartVisitAsync(Guid? userId, string? note)
     {
+        if (userId == Guid.Empty) userId = null;
+
         if (userId.HasValue)
         {
-            // Бизнес-правило: один постоянщик — один активный визит
             var alreadyInClub = await visitRepo.HasActiveVisitAsync(userId.Value);
-            if (alreadyInClub)
-            {
-                throw new InvalidOperationException("У этого пользователя уже есть открытый визит. Сначала закройте текущий счет.");
-            }
+            if (alreadyInClub) throw new InvalidOperationException("Пользователь уже в клубе.");
         }
 
-        return await visitRepo.CreateAsync(userId);
+        return await visitRepo.CreateAsync(userId, note);
     }
 
     /// <summary>
@@ -37,7 +35,7 @@ public class VisitService(
     /// <remarks>
     /// 	Поддерживает гибридную оплату (часть с депозита, часть внешним методом).
     /// </remarks>
-    public async Task CheckoutAsync(Guid visitId, decimal internalAmount, decimal externalAmount, PaymentMethod method)
+    public async Task CheckoutAsync(Guid visitId, decimal internalAmount, decimal externalAmount, PaymentMethod method, Guid staffId)
     {
         using var connection = db.CreateConnection();
         connection.Open();
@@ -68,9 +66,12 @@ public class VisitService(
                 {
                     VisitId = visitId,
                     UserId = visit.UserId,
-                    Amount = internalAmount,
-                    PaymentMethod = Domain.Common.PaymentMethod.Internal
+                    StaffId = staffId, // Получаем из параметров метода
+                    Amount = externalAmount,
+                    PaymentMethod = method,
+                    Description = "Оплата визита"
                 }, transaction);
+
             }
 
             // 2. Внешняя оплата (Cash/Card)
@@ -81,7 +82,8 @@ public class VisitService(
                     VisitId = visitId,
                     UserId = visit.UserId,
                     Amount = externalAmount,
-                    PaymentMethod = method
+                    PaymentMethod = method,
+                    StaffId = staffId
                 }, transaction);
             }
 
@@ -137,5 +139,49 @@ public class VisitService(
         var to = from.AddDays(1).AddTicks(-1);
 
         return await visitRepo.GetDetailedTransactionsAsync(from, to);
+    }
+
+    /// <summary>
+    /// 	Оплата визита (счета) одного гостя с депозита другого пользователя.
+    /// </summary>
+    /// <param name="payerUserId">	ID того, кто платит (постоянщик). </param>
+    /// <param name="targetVisitId"> ID визита, который нужно закрыть (друг/аноним). </param>
+    public async Task PayForFriendAsync(Guid payerUserId, Guid targetVisitId)
+    {
+        using var connection = db.CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            // 1. Получаем визит друга
+            var visit = await visitRepo.GetByIdAsync(targetVisitId)
+                ?? throw new Exception("Визит друга не найден.");
+
+            if (visit.IsClosed) throw new Exception("Визит уже оплачен.");
+
+            // 2. Списываем всю сумму визита с баланса плательщика
+            var success = await visitRepo.UpdateUserBalanceAsync(payerUserId, -visit.TotalAmount, transaction);
+            if (!success) throw new Exception("Недостаточно средств на балансе плательщика.");
+
+            // 3. Фиксируем транзакцию (кто платил и за какой визит)
+            await visitRepo.RegisterTransactionAsync(new Transaction
+            {
+                VisitId = targetVisitId,
+                UserId = payerUserId, // Плательщик
+                Amount = visit.TotalAmount,
+                PaymentMethod = PaymentMethod.Internal
+            }, transaction);
+
+            // 4. Закрываем визит друга
+            await visitRepo.CloseAsync(targetVisitId, transaction);
+
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
 }

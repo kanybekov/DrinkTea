@@ -17,5 +17,5 @@ public interface ISaleRepository
     /// <param name="totalCost">	Итоговая стоимость по розничной цене. </param>
     /// <param name="method">		Метод оплаты (Internal/Cash/Card). </param>
     /// <param name="transaction">	Активная SQL-транзакция. </param>
-    Task CreateSaleAsync(Guid teaId, Guid? userId, decimal grams, decimal totalCost, PaymentMethod method, IDbTransaction transaction);
+    Task CreateSaleAsync(Guid teaId, Guid? userId, decimal grams, decimal totalCost, PaymentMethod method, Guid staffId, IDbTransaction transaction);
 }

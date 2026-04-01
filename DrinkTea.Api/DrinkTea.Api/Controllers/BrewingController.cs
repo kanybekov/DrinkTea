@@ -1,5 +1,7 @@
-﻿using DrinkTea.Api.Models.Responses;
+﻿using DrinkTea.Api.Infrastructure;
+using DrinkTea.Api.Models.Responses;
 using DrinkTea.BL.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
@@ -10,11 +12,15 @@ public class BrewingController(BrewingService service) : ControllerBase
     /// 	Создать новую заварку на компанию.
     /// </summary>
     [HttpPost("start")]
-    public async Task<IActionResult> Start([FromBody] StartBrewingDto dto)
+    [Authorize(Roles = "Master")]
+    public async Task<IActionResult> Start([FromBody] StartBrewingDto dto, [FromServices] UserContext userContext)
     {
-        var sessionId = await service.StartBrewingAsync(dto.TeaId, dto.Grams, dto.VisitIds);
+        // Мы берем ID мастера НЕ из тела запроса (которое можно подделать),
+        // а из защищенного JWT-токена!
+        var sessionId = await service.StartBrewingAsync(dto.TeaId, dto.Grams, dto.VisitIds, userContext.UserId);
         return Ok(new { SessionId = sessionId });
     }
+
 
     /// <summary>
     /// 	Подсадить гостя в существующую сессию заваривания.

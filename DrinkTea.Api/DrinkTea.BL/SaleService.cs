@@ -22,7 +22,8 @@ public class SaleService(
     /// 	Списывает остаток со склада по розничной цене. 
     /// 	Если указан UserId и метод Internal — списывает средства с депозита.
     /// </remarks>
-    public async Task<Guid> SellAsync(Guid teaId, decimal grams, PaymentMethod method, Guid? userId = null)
+    /// <param name="staffId">	ID мастера, совершившего продажу (из JWT). </param>
+    public async Task<Guid> SellAsync(Guid teaId, decimal grams, PaymentMethod method, Guid staffId, Guid? userId = null)
     {
         using var connection = db.CreateConnection();
         connection.Open();
@@ -30,9 +31,12 @@ public class SaleService(
 
         try
         {
-            // 1. Получаем розничную цену
-            var price = await teaRepo.GetLatestPriceAsync(teaId)
-                ?? throw new Exception("Цена на чай не найдена.");
+            // 1. Достаем данные о чае (чтобы знать название для истории)
+            var tea = await teaRepo.GetByIdAsync(teaId)
+                ?? throw new Exception("Чай не найден.");
+
+            var price = await teaRepo.GetLatestPriceAsync(teaId, transaction)
+                ?? throw new Exception("Цена не найдена.");
 
             decimal totalCost = grams * price.SalePricePerGram;
 
@@ -40,27 +44,30 @@ public class SaleService(
             var stockUpdated = await teaRepo.UpdateStockAsync(teaId, -grams, transaction);
             if (!stockUpdated) throw new Exception("Недостаточно чая на складе.");
 
-            // 3. Если оплата с депозита — списываем баланс
+            // 3. Если оплата с баланса — списываем
             if (method == PaymentMethod.Internal)
             {
-                if (!userId.HasValue) throw new Exception("Для оплаты с депозита нужен ID пользователя.");
-
-                var balanceUpdated = await visitRepo.UpdateUserBalanceAsync(userId.Value, -totalCost, transaction);
-                if (!balanceUpdated) throw new Exception("Ошибка списания с баланса пользователя.");
+                if (!userId.HasValue) throw new Exception("Для оплаты с депозита нужен клиент.");
+                await visitRepo.UpdateUserBalanceAsync(userId.Value, -totalCost, transaction);
             }
 
-            // 4. Регистрируем продажу и общую финансовую транзакцию
-            await saleRepo.CreateSaleAsync(teaId, userId, grams, totalCost, method, transaction);
+            // 4. Регистрируем продажу
+            await saleRepo.CreateSaleAsync(teaId, userId, grams, totalCost, method, staffId, transaction);
 
+            // 5. Создаем подробную финансовую транзакцию
             await visitRepo.RegisterTransactionAsync(new Transaction
             {
                 UserId = userId,
+                StaffId = staffId, // Кто продал
                 Amount = totalCost,
-                PaymentMethod = method
+                PaymentMethod = method,
+                // Используем имя чая прямо здесь:
+                Description = $"Розничная продажа: {tea.Name} ({grams}г)",
+                CreatedAt = DateTime.UtcNow
             }, transaction);
 
             transaction.Commit();
-            return Guid.NewGuid(); // Возвращаем ID операции (упрощенно)
+            return Guid.NewGuid();
         }
         catch
         {
@@ -68,4 +75,5 @@ public class SaleService(
             throw;
         }
     }
+
 }

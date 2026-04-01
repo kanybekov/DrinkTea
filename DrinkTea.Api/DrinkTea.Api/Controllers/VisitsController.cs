@@ -1,6 +1,8 @@
-﻿using DrinkTea.Api.Models.Responses;
+﻿using DrinkTea.Api.Infrastructure;
+using DrinkTea.Api.Models.Responses;
 using DrinkTea.BL.Services;
 using DrinkTea.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
@@ -8,11 +10,11 @@ using Microsoft.AspNetCore.Mvc;
 public class VisitsController(VisitService visitService) : ControllerBase
 {
     [HttpPost("checkin")]
-    public async Task<IActionResult> CheckIn([FromBody] Guid? userId)
+    public async Task<IActionResult> CheckIn([FromBody] CheckInRequest req)
     {
         try
         {
-            var visit = await visitService.StartVisitAsync(userId);
+            var visit = await visitService.StartVisitAsync(req.UserId, req.Note);
             return Ok(visit);
         }
         catch (InvalidOperationException ex)
@@ -22,12 +24,36 @@ public class VisitsController(VisitService visitService) : ControllerBase
         }
     }
 
+    /// <summary>
+    /// 	Закрыть счет гостя с проведением оплаты.
+    /// </summary>
+    /// <remarks>
+    /// 	ID мастера автоматически извлекается из JWT-токена через UserContext.
+    /// </remarks>
     [HttpPost("{id:guid}/checkout")]
-    public async Task<IActionResult> Checkout(Guid id, [FromBody] CheckoutRequest req)
+    [Authorize(Roles = "Master")] // Только авторизованный мастер может закрыть чек
+    public async Task<IActionResult> Checkout(
+        Guid id,
+        [FromBody] CheckoutRequest req,
+        [FromServices] UserContext userContext) // Внедряем контекст прямо в метод
     {
-        await visitService.CheckoutAsync(id, req.InternalAmount, req.ExternalAmount, req.Method);
-        return Ok(new { Status = "Closed" });
+        // 1. Извлекаем ID мастера из токена
+        var staffId = userContext.UserId;
+
+        if (staffId == Guid.Empty)
+            return Unauthorized("Не удалось определить личность мастера из токена");
+
+        // 2. Передаем все данные в сервис, включая StaffId
+        await visitService.CheckoutAsync(
+            id,
+            req.InternalAmount,
+            req.ExternalAmount,
+            req.Method,
+            staffId);
+
+        return Ok(new { Status = "Closed", StaffId = staffId });
     }
+
 
     /// <summary>
     /// 	Получить список активных визитов для панели мониторинга.
@@ -88,6 +114,18 @@ public class VisitsController(VisitService visitService) : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// 	Закрыть счет гостя, списав сумму с депозита другого пользователя (друга).
+    /// </summary>
+    [HttpPost("{visitId:guid}/pay-by/{payerUserId:guid}")]
+    public async Task<IActionResult> PayForFriend(Guid visitId, Guid payerUserId)
+    {
+        await visitService.PayForFriendAsync(payerUserId, visitId);
+        return Ok(new { Message = "Счет друга успешно оплачен с вашего депозита" });
+    }
 }
+
+public record CheckInRequest(Guid? UserId, string? Note);
 
 public record CheckoutRequest(decimal InternalAmount, decimal ExternalAmount, PaymentMethod Method);

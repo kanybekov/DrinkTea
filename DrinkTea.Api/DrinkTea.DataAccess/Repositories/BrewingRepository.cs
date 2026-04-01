@@ -10,15 +10,15 @@ namespace DrinkTea.DataAccess.Repositories;
 /// </summary>
 public class BrewingRepository(DbConnectionFactory db) : IBrewingRepository
 {
-    public async Task<Guid> CreateSessionAsync(Guid teaId, Guid priceId, decimal grams, decimal totalCost, IDbTransaction transaction)
+    public async Task<Guid> CreateSessionAsync(Guid teaId, Guid priceId, decimal grams, decimal totalCost, Guid staffId, IDbTransaction transaction)
     {
         const string sql = @"
-			INSERT INTO BrewingSessions (TeaId, PriceSnapshotId, TotalGrams, TotalCost)
-			VALUES (@TeaId, @PriceId, @Grams, @TotalCost)
-			RETURNING Id;";
+		    INSERT INTO BrewingSessions (TeaId, PriceSnapshotId, TotalGrams, TotalCost, StaffId)
+		    VALUES (@TeaId, @PriceId, @Grams, @TotalCost, @StaffId)
+		    RETURNING Id;";
 
         return await transaction.Connection.QuerySingleAsync<Guid>(sql,
-            new { TeaId = teaId, PriceId = priceId, Grams = grams, TotalCost = totalCost },
+            new { TeaId = teaId, PriceId = priceId, Grams = grams, TotalCost = totalCost, StaffId = staffId },
             transaction);
     }
 

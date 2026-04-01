@@ -17,7 +17,7 @@ public interface IVisitRepository
     /// <returns>
     /// 	Созданный объект визита с присвоенным ID и временем начала.
     /// </returns>
-    Task<Visit> CreateAsync(Guid? userId);
+    Task<Visit> CreateAsync(Guid? userId, string? note);
 
     /// <summary>
     /// 	Получает данные о визите по его идентификатору.

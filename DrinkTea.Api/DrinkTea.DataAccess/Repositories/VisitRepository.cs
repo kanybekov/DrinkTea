@@ -10,23 +10,30 @@ namespace DrinkTea.DataAccess.Repositories;
 /// </summary>
 public class VisitRepository(DbConnectionFactory db) : IVisitRepository
 {
-    public async Task<Visit> CreateAsync(Guid? userId)
+    /// <summary>
+    /// 	Создает новую запись о визите.
+    /// </summary>
+    /// <param name="userId"> ID пользователя или null. </param>
+    /// <param name="note"> Заметка мастера для идентификации (например, "Стол 5"). </param>
+    public async Task<Visit> CreateAsync(Guid? userId, string? note)
     {
         using var connection = db.CreateConnection();
 
         const string sql = @"
-			INSERT INTO Visits (UserId, StartTime, TotalAmount, IsClosed)
-			VALUES (@UserId, CURRENT_TIMESTAMP, 0, FALSE)
-			RETURNING Id, UserId, StartTime, TotalAmount, IsClosed;";
+		INSERT INTO Visits (UserId, Note, StartTime, TotalAmount, IsClosed)
+		VALUES (@UserId, @Note, CURRENT_TIMESTAMP, 0, FALSE)
+		RETURNING Id, UserId, Note, StartTime, TotalAmount, IsClosed;";
 
-        return await connection.QuerySingleAsync<Visit>(sql, new { UserId = userId });
+        // Dapper сопоставит @Note с параметром метода note
+        return await connection.QuerySingleAsync<Visit>(sql, new { UserId = userId, Note = note });
     }
+
 
     public async Task<Visit?> GetByIdAsync(Guid id)
     {
         using var connection = db.CreateConnection();
 
-        const string sql = "SELECT * FROM Visits WHERE Id = @Id;";
+        const string sql = "SELECT Id, UserId, StartTime, EndTime, TotalAmount, IsClosed, Note FROM Visits WHERE Id = @Id;";
 
         return await connection.QueryFirstOrDefaultAsync<Visit>(sql, new { Id = id });
     }
@@ -66,11 +73,30 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
 
     public async Task RegisterTransactionAsync(Transaction tx, IDbTransaction transaction)
     {
+        // 1. ПРОВЕРКА: Если в репозиторий пришли нули - это авария
+        if (tx.StaffId == Guid.Empty)
+        {
+            throw new Exception("Критическая ошибка: Попытка записать транзакцию без ID мастера (StaffId is Empty).");
+        }
+
         const string sql = @"
-		INSERT INTO Transactions (VisitId, UserId, Amount, PaymentMethod)
-		VALUES (@VisitId, @UserId, @Amount, @PaymentMethod);";
-        await transaction.Connection.ExecuteAsync(sql, tx, transaction);
+		INSERT INTO Transactions (Id, VisitId, UserId, StaffId, Amount, PaymentMethod, Description)
+		VALUES (@Id, @VisitId, @UserId, @StaffId, @Amount, @PaymentMethod, @Description);";
+
+        // 2. Явно указываем параметры, чтобы Dapper не ошибся с именами свойств
+        await transaction.Connection.ExecuteAsync(sql, new
+        {
+            Id = tx.Id == Guid.Empty ? Guid.NewGuid() : tx.Id,
+            // Если UserId/VisitId пустые GUID, превращаем их в NULL для базы
+            VisitId = tx.VisitId == Guid.Empty ? null : tx.VisitId,
+            UserId = tx.UserId == Guid.Empty ? null : tx.UserId,
+            StaffId = tx.StaffId, // Сюда ДОЛЖЕН прийти {853c5d7c...}
+            Amount = tx.Amount,
+            PaymentMethod = (int)tx.PaymentMethod,
+            Description = tx.Description
+        }, transaction);
     }
+
 
     public async Task<IEnumerable<dynamic>> GetActiveVisitsWithNamesAsync()
     {
@@ -81,8 +107,10 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
 			v.Id, 
 			v.UserId, 
 			v.StartTime, 
-			v.TotalAmount, 
-			u.FullName as UserName
+		    v.TotalAmount as UnpaidDebt, 
+		    u.Balance as UserDeposit,    
+			u.FullName as UserName,
+		    v.Note
 		FROM Visits v
 		LEFT JOIN Users u ON v.UserId = u.Id
 		WHERE v.IsClosed = FALSE
@@ -146,6 +174,7 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
 			t.Amount, 
 			t.PaymentMethod as Method, 
 			t.VisitId,
+            COALESCE(v.Note, 'Оплата визита') as Description -- Добавляем заметку из визита
 			CASE 
 				WHEN t.VisitId IS NOT NULL THEN 'Оплата визита'
 				WHEN s.Id IS NOT NULL THEN 'Продажа: ' || tea.Name || ' (' || s.Grams || 'г)'
