@@ -10,6 +10,13 @@ namespace DrinkTea.DataAccess.Repositories;
 /// </summary>
 public class BrewingRepository(DbConnectionFactory db) : IBrewingRepository
 {
+    public async Task<bool> FinishSessionAsync(Guid sessionId, IDbTransaction transaction)
+    {
+        const string sql = "UPDATE BrewingSessions SET IsFinished = TRUE WHERE Id = @Id;";
+        var rows = await transaction.Connection.ExecuteAsync(sql, new { Id = sessionId }, transaction);
+        return rows > 0;
+    }
+
     public async Task<Guid> CreateSessionAsync(Guid teaId, Guid priceId, decimal grams, decimal totalCost, Guid staffId, IDbTransaction transaction)
     {
         const string sql = @"
@@ -73,4 +80,29 @@ public class BrewingRepository(DbConnectionFactory db) : IBrewingRepository
         const string sql = "DELETE FROM BrewingSessions WHERE Id = @Id;";
         await transaction.Connection.ExecuteAsync(sql, new { Id = sessionId }, transaction);
     }
+
+    public async Task<IEnumerable<dynamic>> GetActiveSessionsWithParticipantsAsync()
+    {
+        using var connection = db.CreateConnection();
+        // Собираем сессию, название чая и список имен участников через разделитель
+        const string sql = @"
+    SELECT 
+        s.Id as ""Id"", 
+        t.Name as ""TeaName"", 
+        s.TotalGrams as ""Grams"", 
+        s.TotalCost as ""TotalCost"", 
+        s.CreatedAt as ""CreatedAt"",
+        STRING_AGG(COALESCE(u.FullName, v.Note, 'Гость'), ', ') as ""Participants""
+    FROM BrewingSessions s
+    JOIN Teas t ON s.TeaId = t.Id
+    JOIN BrewingParticipants p ON s.Id = p.SessionId
+    JOIN Visits v ON p.VisitId = v.Id
+    LEFT JOIN Users u ON v.UserId = u.Id
+    WHERE s.IsFinished = FALSE
+    GROUP BY s.Id, t.Name, s.TotalGrams, s.TotalCost, s.CreatedAt
+    ORDER BY s.CreatedAt DESC;";
+
+        return await connection.QueryAsync(sql);
+    }
+
 }

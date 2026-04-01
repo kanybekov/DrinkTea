@@ -88,4 +88,20 @@ public class BrewingController(BrewingService service) : ControllerBase
 
         return Ok(items);
     }
+
+    [HttpGet("active")]
+    [Authorize(Roles = "Master")]
+    public async Task<IActionResult> GetActive()
+    {
+        var sessions = await service.GetActiveSessionsAsync();
+        return Ok(sessions);
+    }
+
+    [HttpPatch("{id:guid}/finish")]
+    [Authorize(Roles = "Master")]
+    public async Task<IActionResult> Finish(Guid id)
+    {
+        await service.FinishSessionAsync(id);
+        return Ok(new { Message = "Заварка завершена" });
+    }
 }

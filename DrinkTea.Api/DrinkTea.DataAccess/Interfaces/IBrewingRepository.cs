@@ -8,6 +8,8 @@ namespace DrinkTea.DataAccess.Interfaces;
 /// </summary>
 public interface IBrewingRepository
 {
+    Task<bool> FinishSessionAsync(Guid sessionId, IDbTransaction transaction);
+
     /// <summary>
     /// 	Регистрирует новую сессию заваривания в базе данных.
     /// </summary>
@@ -64,4 +66,6 @@ public interface IBrewingRepository
     /// 	Полностью удаляет сессию заваривания из базы данных.
     /// </summary>
     Task DeleteSessionAsync(Guid sessionId, IDbTransaction transaction);
+
+    Task<IEnumerable<dynamic>> GetActiveSessionsWithParticipantsAsync();
 }

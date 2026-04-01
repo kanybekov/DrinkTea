@@ -1,129 +1,227 @@
 ﻿@page "/"
 @page "/dashboard"
 @using DrinkTea.Shared.Models.Responses
+@implements IDisposable
 @inject HttpClient Http
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <div class="container-fluid mt-4 px-4">
-    <!-- ВЕРХНЯЯ ПАНЕЛЬ УПРАВЛЕНИЯ -->
-    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white shadow-sm rounded-3">
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white shadow-sm rounded-3 border-bottom">
         <div>
-            <h2 class="fw-bold m-0 text-dark"><i class="bi bi-shop text-success me-2"></i>Зал</h2>
-            <small class="text-muted">Активных визитов: @(activeVisits?.Count ?? 0)</small>
+            <h2 class="fw-bold m-0"><i class="bi bi-shop text-success me-2"></i>Зал</h2>
+            <div class="text-muted small">
+                Гостей: <span class="badge bg-secondary">@(activeVisits?.Count ?? 0)</span> |
+                Чайников: <span class="badge bg-primary">@(activeSessions?.Count ?? 0)</span>
+            </div>
         </div>
         <div class="d-flex gap-2">
-            <!-- ОБЩАЯ КНОПКА ЗАВАРКИ (теперь обособлена) -->
-            <button class="btn btn-primary btn-lg shadow-sm px-4" @onclick='() => Nav.NavigateTo("/brewing/new")'>
-                <i class="bi bi-plus-circle me-2"></i>Новая заварка
+            <button class="btn btn-primary btn-lg shadow-sm" @onclick='() => Nav.NavigateTo("/brewing/new")'>
+                <i class="bi bi-plus-circle me-1"></i> Новая заварка
             </button>
-            
-            <!-- КНОПКА РЕГИСТРАЦИИ -->
-            <button class="btn btn-success btn-lg shadow-sm px-4" @onclick='() => Nav.NavigateTo("/checkin")'>
-                <i class="bi bi-person-plus me-2"></i>Новый гость
+            <button class="btn btn-success btn-lg shadow-sm" @onclick='() => Nav.NavigateTo("/checkin")'>
+                <i class="bi bi-person-plus me-1"></i> Новый гость
             </button>
         </div>
     </div>
 
-    @if (errorMessage != null)
-    {
-        <div class="alert alert-danger shadow-sm border-0 border-start border-4 border-danger">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i> @errorMessage
-        </div>
-    }
-
-    @if (activeVisits == null)
-    {
-        <div class="text-center p-5">
-            <div class="spinner-border text-success" style="width: 3rem; height: 3rem;" role="status"></div>
-            <p class="mt-3 text-muted fw-bold">Считываем данные из зала...</p>
-        </div>
-    }
-    else if (!activeVisits.Any())
-    {
-        <div class="card border-0 shadow-sm text-center py-5 bg-white rounded-4">
-            <div class="card-body">
-                <i class="bi bi-cup-straw text-light-emphasis display-1"></i>
-                <h3 class="text-muted mt-3">В клубе сейчас пусто</h3>
-                <p class="text-secondary">Нажмите "Новый гость", чтобы открыть первый счет.</p>
+    <!-- БЛОК 1: ГОСТИ В ЗАЛЕ (КАРТОЧКИ) -->
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4 mb-5">
+        @if (activeVisits == null)
+        {
+            <div class="col-12 text-center py-5"><div class="spinner-border text-success"></div></div>
+        }
+        else if (!activeVisits.Any())
+        {
+            <div class="col-12 text-center py-5 bg-white rounded-3 border">
+                <p class="text-muted m-0">В зале пока нет открытых счетов.</p>
             </div>
-        </div>
-    }
-    else
-    {
-        <!-- СЕТКА КАРТОЧЕК ГОСТЕЙ -->
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+        }
+        else
+        {
             @foreach (var v in activeVisits)
             {
                 <div class="col">
-                    <div class="card h-100 shadow-sm border-0 border-top border-4 @(v.UnpaidDebt > 1500 ? "border-danger" : "border-success") rounded-3">
+                    <div class="card h-100 shadow-sm border-0 border-top border-4 @(v.UnpaidDebt > 1500 ? "border-danger" : "border-success")">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <h5 class="fw-bold text-truncate me-2" title="@(v.UserName ?? v.Note)">
-                                    <i class="bi bi-person-fill text-secondary me-1"></i>
-                                    @(string.IsNullOrEmpty(v.UserName) ? v.Note : v.UserName)
-                                </h5>
-                                <span class="badge bg-light text-dark border">
-                                    <i class="bi bi-clock me-1"></i>@v.StartTime.ToShortTimeString()
-                                </span>
+                            <div class="d-flex justify-content-between mb-2">
+                                <h6 class="fw-bold text-truncate">@(string.IsNullOrEmpty(v.UserName) ? v.Note : v.UserName)</h6>
+                                <span class="badge bg-light text-dark border">@v.StartTime.ToShortTimeString()</span>
                             </div>
-                            
-                            <div class="bg-light p-3 rounded-3 mb-2 text-center">
-                                <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">К оплате</div>
-                                <div class="h2 fw-bold m-0 @(v.UnpaidDebt > 0 ? "text-danger" : "text-dark")">
-                                    @v.UnpaidDebt.ToString("N0") ₽
-                                </div>
+                            <div class="bg-light p-2 rounded text-center mb-2">
+                                <div class="h3 fw-bold m-0 @(v.UnpaidDebt > 0 ? "text-danger" : "")">@v.UnpaidDebt.ToString("N0") ₽</div>
                             </div>
-
-                            @if (v.UserDeposit.HasValue && v.UserDeposit.Value > 0)
+                            @if (v.UserDeposit > 0)
                             {
-                                <div class="text-center">
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
-                                        <i class="bi bi-wallet2 me-1"></i>Баланс: @v.UserDeposit.Value.ToString("N0") ₽
-                                    </span>
-                                </div>
+                                <small class="text-success fw-bold"><i class="bi bi-wallet2"></i> Депозит: @v.UserDeposit ₽</small>
                             }
                         </div>
-                        <div class="card-footer bg-white border-0 pt-0 pb-3 px-3 d-flex gap-2">
-                            <!-- Кнопка "Детали" для просмотра что именно пил гость -->
-                            <button class="btn btn-outline-secondary w-100 btn-sm" @onclick='() => Nav.NavigateTo($"/visit/{v.Id}")'>
-                                <i class="bi bi-list-ul"></i> Чек
-                            </button>
-                            
-                            <!-- Кнопка быстрой оплаты -->
-                            <button class="btn btn-success w-100 btn-sm" @onclick='() => Nav.NavigateTo($"/checkout/{v.Id}")'>
-                                <i class="bi bi-cash-stack"></i> Оплата
-                            </button>
+                        <div class="card-footer bg-white border-0 d-flex gap-2 pb-3">
+                            <button class="btn btn-sm btn-outline-secondary w-100" @onclick='() => Nav.NavigateTo($"/visit/{v.Id}")'>Чек</button>
+                            <button class="btn btn-sm btn-success w-100" @onclick='() => Nav.NavigateTo($"/checkout/{v.Id}")'>Оплата</button>
                         </div>
                     </div>
                 </div>
             }
-        </div>
-    }
+        }
+    </div>
+
+    <!-- БЛОК 2: ТЕКУЩИЕ ЗАВАРКИ (ТАБЛИЦА) -->
+    <div class="bg-white shadow-sm rounded-4 p-4 mb-5">
+        <h4 class="fw-bold mb-4 text-primary"><i class="bi bi-fire me-2"></i>Сейчас на столах</h4>
+        
+        @if (activeSessions == null)
+        {
+            <div class="text-center"><div class="spinner-border spinner-border-sm"></div></div>
+        }
+        else if (!activeSessions.Any())
+        {
+            <div class="text-muted py-3">Нет активных заварок. Начните новую, чтобы она появилась здесь.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle table-hover border-top">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Сорт чая</th>
+                            <th>Граммов</th>
+                            <th>Участники</th>
+                            <th>Заварено в</th>
+                            <th class="text-end">Управление</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in activeSessions)
+                        {
+                            <tr>
+                                <td class="fw-bold">@s.TeaName</td>
+                                <td>@s.Grams.ToString("0.0") г</td>
+                                <td>
+                                    @foreach (var name in s.ParticipantNames)
+                                    {
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle me-1 position-relative pe-3">
+                                            <i class="bi bi-person-fill small"></i> @name
+            
+                                            @* Кнопка удаления участника (крестик) *@
+                                            <button type="button"
+                                                    class="btn-close position-absolute top-50 end-0 translate-middle-y me-1"
+                                                    style="font-size: 0.5rem; filter: invert(0.5);"
+                                                    @onclick="() => RemoveFromSession(s.Id, name)"
+                                                    title="Удалить из этой заварки">
+                                            </button>
+                                        </span>
+                                    }
+                                </td>
+                                <td class="text-muted">@s.CreatedAt.ToShortTimeString()</td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <!-- Допили (Зеленая) -->
+                                        <button class="btn btn-sm btn-success d-flex align-items-center gap-1 shadow-sm"
+                                                @onclick="() => FinishBrewing(s.Id)" title="Завершить">
+                                            <i class="bi bi-check-lg"></i>
+                                            <span class="d-none d-xxl-inline">Допили</span>
+                                        </button>
+
+                                        <!-- Подсадить (Синяя) -->
+                                        <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 shadow-sm"
+                                                @onclick='() => Nav.NavigateTo($"/brewing/join/{s.Id}")' title="Подсадить">
+                                            <i class="bi bi-person-plus-fill"></i>
+                                            <span class="d-none d-xxl-inline">Подсадить</span>
+                                        </button>
+
+                                        <!-- Отмена (Красная) -->
+                                        <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 shadow-sm"
+                                                @onclick="() => CancelBrewing(s.Id)" title="Удалить ошибку">
+                                            <i class="bi bi-trash3-fill"></i>
+                                            <span class="d-none d-xxl-inline">Отмена</span>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
 </div>
 
 @code {
     private List<ActiveVisitDto>? activeVisits;
-    private string? errorMessage;
+    private List<ActiveBrewingDto>? activeSessions;
+    private System.Threading.Timer? _timer;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
+        // Запускаем авто-обновление каждые 30 секунд
+        _timer = new System.Threading.Timer(async _ => await InvokeAsync(LoadData), null, 3000000, 3000000);
     }
 
     private async Task LoadData()
     {
         try
         {
-            errorMessage = null;
-            // Убедись, что API эндпоинт верный (VisitsController -> GetActive)
             activeVisits = await Http.GetFromJsonAsync<List<ActiveVisitDto>>("api/visits/active");
+            activeSessions = await Http.GetFromJsonAsync<List<ActiveBrewingDto>>("api/brewing/active");
             StateHasChanged();
         }
         catch (Exception ex)
         {
-            errorMessage = "Ошибка связи с API. Проверьте подключение.";
-            activeVisits = new();
-            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine($"Ошибка загрузки Dashboard: {ex.Message}");
         }
     }
+
+    private async Task CancelBrewing(Guid sessionId)
+    {
+        var session = activeSessions?.FirstOrDefault(s => s.Id == sessionId);
+        bool confirmed = await JS.InvokeAsync<bool>("confirm",
+            $"ВНИМАНИЕ! Полностью отменить заварку '{session?.TeaName}'? \nГраммы вернутся на склад, а долги спишутся у всех участников.");
+    
+        if (!confirmed) return;
+
+        var response = await Http.DeleteAsync($"api/brewing/{sessionId}");
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task FinishBrewing(Guid sessionId)
+    {
+        var session = activeSessions?.FirstOrDefault(s => s.Id == sessionId);
+        bool confirmed = await JS.InvokeAsync<bool>("confirm",
+    $"ВНИМАНИЕ! Завершить заварку '{session?.TeaName}'?");
+    
+        if (!confirmed) return;
+
+        var response = await Http.PatchAsync($"api/brewing/{sessionId}/finish", null);
+    
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadData(); // Обновляем списки
+        }
+    }
+
+    private async Task RemoveFromSession(Guid sessionId, string participantName)
+    {
+        // Стандартное окно браузера Да/Нет
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Высадить гостя '{participantName}' из этой заварки?");
+        if (!confirmed) return;
+
+        var targetVisit = activeVisits?.FirstOrDefault(v =>
+            (string.IsNullOrEmpty(v.UserName) ? v.Note : v.UserName) == participantName);
+
+        if (targetVisit == null) return;
+
+        var response = await Http.DeleteAsync($"api/brewing/{sessionId}/participants/{targetVisit.Id}");
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadData();
+        }
+    }
+
+    public void Dispose() => _timer?.Dispose();
 }

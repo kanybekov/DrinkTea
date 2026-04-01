@@ -1,5 +1,6 @@
 ﻿using DrinkTea.DataAccess;
 using DrinkTea.DataAccess.Interfaces;
+using DrinkTea.Shared.Models.Responses;
 using System.Data;
 
 namespace DrinkTea.BL.Services;
@@ -218,5 +219,51 @@ public class BrewingService(
     {
         // Обращаемся к репозиторию визитов, который уже внедрен в конструктор сервиса
         return await visitRepo.GetVisitItemsAsync(visitId);
+    }
+
+    public async Task<IEnumerable<ActiveBrewingDto>> GetActiveSessionsAsync()
+    {
+        var rawData = await brewingRepo.GetActiveSessionsWithParticipantsAsync();
+
+        return rawData.Select(x => {
+            // Приводим к словарю, чтобы безопасно достать значения по именам с кавычками
+            var row = (IDictionary<string, object>)x;
+
+            return new ActiveBrewingDto
+            {
+                Id = row.ContainsKey("Id") ? (Guid)row["Id"] : Guid.Empty,
+                TeaName = row.ContainsKey("TeaName") ? row["TeaName"]?.ToString() ?? "Без названия" : "Без названия",
+                Grams = row.ContainsKey("Grams") ? Convert.ToDecimal(row["Grams"]) : 0m,
+                TotalCost = row.ContainsKey("TotalCost") ? Convert.ToDecimal(row["TotalCost"]) : 0m,
+                CreatedAt = row.ContainsKey("CreatedAt") ? (DateTime)row["CreatedAt"] : DateTime.Now,
+
+                // Исправляем ошибку: сначала в строку, потом Split
+                ParticipantNames = row.ContainsKey("Participants") && row["Participants"] != null
+                    ? row["Participants"].ToString()!
+                        .Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries)
+                        .ToList()
+                    : new List<string> { "Аноним" }
+            };
+        }).ToList();
+    }
+
+    public async Task FinishSessionAsync(Guid sessionId)
+    {
+        using var connection = db.CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var success = await brewingRepo.FinishSessionAsync(sessionId, transaction);
+            if (!success) throw new Exception("Сессия не найдена или уже завершена.");
+
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
 }

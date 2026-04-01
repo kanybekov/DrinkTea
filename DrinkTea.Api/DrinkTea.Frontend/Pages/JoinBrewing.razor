@@ -1,0 +1,105 @@
+﻿@page "/brewing/join/{sessionId:guid}"
+@using DrinkTea.Shared.Models.Requests
+@using DrinkTea.Shared.Models.Responses
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Master")]
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<div class="container mt-4" style="max-width: 500px;">
+    <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+        <div class="card-header bg-primary text-white p-4 text-center">
+            <h3 class="m-0 fw-bold">Подсадка гостя</h3>
+            <p class="mb-0 opacity-75">Добавить участника к заварке: @(sessionInfo?.TeaName ?? "...")</p>
+        </div>
+        
+        <div class="card-body p-4">
+            @if (activeVisits == null)
+            {
+                <div class="text-center p-4"><div class="spinner-border text-primary"></div></div>
+            }
+            else
+            {
+                <div class="mb-4 text-center p-3 bg-light rounded-3">
+                    <div class="small text-muted text-uppercase fw-bold">Текущий состав:</div>
+                    <div class="mt-2">
+                        @foreach (var name in sessionInfo?.ParticipantNames ?? new())
+                        {
+                            <span class="badge bg-secondary me-1">@name</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Кто присоединяется?</label>
+                    <select class="form-select form-select-lg" @bind="targetVisitId">
+                        <option value="">-- Выберите гостя из зала --</option>
+                        @foreach (var v in activeVisits.Where(v => !sessionInfo?.ParticipantNames.Contains(v.UserName ?? v.Note) ?? true))
+                        {
+                            <option value="@v.Id">@(v.UserName ?? v.Note) (Долг: @v.UnpaidDebt ₽)</option>
+                        }
+                    </select>
+                </div>
+
+                @if (!string.IsNullOrEmpty(error))
+                {
+                    <div class="alert alert-danger p-2 small">@error</div>
+                }
+
+                <div class="d-grid gap-2 mt-4">
+                    <button class="btn btn-primary btn-lg shadow" @onclick="HandleJoin" disabled="@(targetVisitId == Guid.Empty || isProcessing)">
+                        @if (isProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Подсадить к чайнику
+                    </button>
+                    <button class="btn btn-link text-muted" @onclick='() => Nav.NavigateTo("/")'>Отмена</button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Guid sessionId { get; set; }
+    private Guid targetVisitId;
+    private List<ActiveVisitDto>? activeVisits;
+    private ActiveBrewingDto? sessionInfo;
+    private string? error;
+    private bool isProcessing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Загружаем актуальных гостей и инфо о текущих заварках
+            activeVisits = await Http.GetFromJsonAsync<List<ActiveVisitDto>>("api/visits/active");
+            var allSessions = await Http.GetFromJsonAsync<List<ActiveBrewingDto>>("api/brewing/active");
+            sessionInfo = allSessions?.FirstOrDefault(s => s.Id == sessionId);
+            
+            if (sessionInfo == null) Nav.NavigateTo("/");
+        }
+        catch { error = "Ошибка связи с сервером."; }
+    }
+
+    private async Task HandleJoin()
+    {
+        if (targetVisitId == Guid.Empty) return;
+        isProcessing = true;
+        error = null;
+
+        // Отправляем PATCH запрос на твой эндпоинт подсадки
+        var response = await Http.PatchAsJsonAsync($"api/brewing/{sessionId}/join", new JoinSessionDto { VisitId = targetVisitId });
+
+        if (response.IsSuccessStatusCode)
+        {
+            Nav.NavigateTo("/");
+        }
+        else
+        {
+            error = "Не удалось добавить гостя. Проверьте статус визита.";
+        }
+        isProcessing = false;
+    }
+}
