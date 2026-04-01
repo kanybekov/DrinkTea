@@ -1,4 +1,5 @@
-﻿using DrinkTea.Api.Models.Responses;
+﻿using DrinkTea.Api.Models.Requests;
+using DrinkTea.Api.Models.Responses;
 using DrinkTea.BL.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -26,5 +27,19 @@ public class TeasController(TeaService teaService) : ControllerBase
         ));
 
         return Ok(result);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateTeaRequest req)
+    {
+        var id = await teaService.CreateTeaWithPriceAsync(req.Name, req.InitialStock, req.BrewPrice, req.SalePrice);
+        return Ok(new { TeaId = id });
+    }
+
+    [HttpPost("{id:guid}/restock")]
+    public async Task<IActionResult> Restock(Guid id, [FromBody] RestockRequest req)
+    {
+        await teaService.RestockAsync(id, req.Amount, req.NewBrewPrice, req.NewSalePrice);
+        return Ok(new { Message = "Склад обновлен" });
     }
 }

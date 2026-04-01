@@ -18,7 +18,7 @@ public interface ITeaRepository
     /// </summary>
     /// <param name="teaId">ID чая.</param>
     /// <returns>Объект цены со снимком стоимости для заварки и продажи.</returns>
-    Task<TeaPrice?> GetLatestPriceAsync(Guid teaId);
+    Task<TeaPrice?> GetLatestPriceAsync(Guid teaId, IDbTransaction? transaction = null);
 
     /// <summary>
     ///     Обновляет количество чая на складе.
@@ -34,4 +34,14 @@ public interface ITeaRepository
     /// </summary>
     /// <returns>	Список динамических объектов (данные из Teas + TeaPrices). </returns>
     Task<IEnumerable<dynamic>> GetInventoryAsync();
+
+    /// <summary>
+    /// 	Создает новый сорт чая в справочнике.
+    /// </summary>
+    Task CreateAsync(Tea tea, IDbTransaction transaction);
+
+    /// <summary>
+    /// 	Добавляет новую запись в историю цен.
+    /// </summary>
+    Task AddPriceAsync(TeaPrice price, IDbTransaction transaction);
 }

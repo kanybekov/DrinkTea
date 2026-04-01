@@ -17,15 +17,19 @@ public class TeaRepository(DbConnectionFactory db) : ITeaRepository
             "SELECT * FROM Teas WHERE Id = @Id", new { Id = id });
     }
 
-    public async Task<TeaPrice?> GetLatestPriceAsync(Guid teaId)
+    public async Task<TeaPrice?> GetLatestPriceAsync(Guid teaId, IDbTransaction? transaction = null)
     {
-        using var connection = db.CreateConnection();
-        return await connection.QueryFirstOrDefaultAsync<TeaPrice>(
-            @"SELECT * FROM TeaPrices 
-			  WHERE TeaId = @TeaId 
-			  ORDER BY CreatedAt DESC LIMIT 1",
-            new { TeaId = teaId });
+        // Если транзакция передана — используем её соединение, иначе создаем новое
+        var connection = transaction?.Connection ?? db.CreateConnection();
+
+        const string sql = @"
+		SELECT * FROM TeaPrices 
+		WHERE TeaId = @TeaId 
+		ORDER BY CreatedAt DESC LIMIT 1";
+
+        return await connection.QueryFirstOrDefaultAsync<TeaPrice>(sql, new { TeaId = teaId }, transaction);
     }
+
 
     public async Task<bool> UpdateStockAsync(Guid teaId, decimal amount, IDbTransaction transaction)
     {
@@ -62,5 +66,19 @@ public class TeaRepository(DbConnectionFactory db) : ITeaRepository
 		ORDER BY t.Name;";
 
         return await connection.QueryAsync(sql);
+    }
+
+    public async Task CreateAsync(Tea tea, IDbTransaction transaction)
+    {
+        const string sql = "INSERT INTO Teas (Id, Name, CurrentStock) VALUES (@Id, @Name, @CurrentStock);";
+        await transaction.Connection.ExecuteAsync(sql, tea, transaction);
+    }
+
+    public async Task AddPriceAsync(TeaPrice price, IDbTransaction transaction)
+    {
+        const string sql = @"
+		INSERT INTO TeaPrices (TeaId, BrewPricePerGram, SalePricePerGram) 
+		VALUES (@TeaId, @BrewPricePerGram, @SalePricePerGram);";
+        await transaction.Connection.ExecuteAsync(sql, price, transaction);
     }
 }
