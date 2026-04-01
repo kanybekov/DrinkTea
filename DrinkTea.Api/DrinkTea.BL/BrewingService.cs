@@ -27,6 +27,8 @@ public class BrewingService(
 
         try
         {
+            if (visitIds == null || visitIds.Count == 0) throw new Exception("Нужен хотя бы один участник");
+
             // 1. Получаем цену
             var price = await teaRepo.GetLatestPriceAsync(teaId)
                 ?? throw new Exception("Цена на выбранный чай не установлена");
@@ -74,6 +76,9 @@ public class BrewingService(
 
         try
         {
+            var visit = await visitRepo.GetByIdAsync(visitId);
+            if (visit == null || visit.IsClosed) throw new Exception("Визит уже закрыт или не существует");
+
             // 1. Извлекаем данные для расчета
             var session = await brewingRepo.GetSessionByIdAsync(sessionId, transaction);
             var currentParticipants = await brewingRepo.GetParticipantsBySessionIdAsync(sessionId, transaction);
