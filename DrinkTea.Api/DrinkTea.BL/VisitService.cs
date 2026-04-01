@@ -1,5 +1,6 @@
 ﻿using DrinkTea.DataAccess;
 using DrinkTea.DataAccess.Interfaces;
+using DrinkTea.Domain.Common;
 using DrinkTea.Domain.Entities;
 using System.Data;
 
@@ -36,7 +37,7 @@ public class VisitService(
     /// <remarks>
     /// 	Поддерживает гибридную оплату (часть с депозита, часть внешним методом).
     /// </remarks>
-    public async Task CheckoutAsync(Guid visitId, decimal internalAmount, decimal externalAmount, string method)
+    public async Task CheckoutAsync(Guid visitId, decimal internalAmount, decimal externalAmount, PaymentMethod method)
     {
         using var connection = db.CreateConnection();
         connection.Open();
@@ -68,7 +69,7 @@ public class VisitService(
                     VisitId = visitId,
                     UserId = visit.UserId,
                     Amount = internalAmount,
-                    PaymentMethod = "Internal"
+                    PaymentMethod = Domain.Common.PaymentMethod.Internal
                 }, transaction);
             }
 

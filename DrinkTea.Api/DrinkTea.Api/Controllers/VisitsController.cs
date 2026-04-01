@@ -1,5 +1,6 @@
 ﻿using DrinkTea.Api.Models.Responses;
 using DrinkTea.BL.Services;
+using DrinkTea.Domain.Common;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
@@ -39,4 +40,4 @@ public class VisitsController(VisitService visitService) : ControllerBase
     }
 }
 
-public record CheckoutRequest(decimal InternalAmount, decimal ExternalAmount, string Method);
+public record CheckoutRequest(decimal InternalAmount, decimal ExternalAmount, PaymentMethod Method);

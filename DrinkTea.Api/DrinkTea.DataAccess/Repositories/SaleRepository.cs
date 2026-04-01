@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using DrinkTea.DataAccess.Interfaces;
+using DrinkTea.Domain.Common;
 using System.Data;
 
 namespace DrinkTea.DataAccess.Repositories;
@@ -9,7 +10,7 @@ namespace DrinkTea.DataAccess.Repositories;
 /// </summary>
 public class SaleRepository(DbConnectionFactory db) : ISaleRepository
 {
-    public async Task CreateSaleAsync(Guid teaId, Guid? userId, decimal grams, decimal totalCost, string method, IDbTransaction transaction)
+    public async Task CreateSaleAsync(Guid teaId, Guid? userId, decimal grams, decimal totalCost, PaymentMethod method, IDbTransaction transaction)
     {
         const string sql = @"
 			INSERT INTO Sales (TeaId, UserId, Grams, TotalCost, PaymentMethod)

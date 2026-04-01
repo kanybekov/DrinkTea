@@ -1,4 +1,6 @@
-﻿namespace DrinkTea.Domain.Entities;
+﻿using DrinkTea.Domain.Common;
+
+namespace DrinkTea.Domain.Entities;
 
 /// <summary>
 /// 	Запись о движении денежных средств.
@@ -17,7 +19,7 @@ public class Transaction
     /// <summary>
     /// 	Способ оплаты: Internal (депозит), Cash, Card.
     /// </summary>
-    public string PaymentMethod { get; set; } = string.Empty;
+    public PaymentMethod PaymentMethod { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

@@ -1,4 +1,6 @@
-﻿namespace DrinkTea.Api.Models.Requests;
+﻿using DrinkTea.Domain.Common;
+
+namespace DrinkTea.Api.Models.Requests;
 
 /// <summary>
 /// 	Данные для оформления розничной продажи чая.
@@ -11,7 +13,7 @@ public record SaleRequest(
     decimal Grams,
 
     /// <summary>	Способ оплаты (Cash, Card или Internal для депозита). </summary>
-    string PaymentMethod,
+    PaymentMethod PaymentMethod,
 
     /// <summary>	ID клиента (необязательно, если не Internal). </summary>
     Guid? UserId);

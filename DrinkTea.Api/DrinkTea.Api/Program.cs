@@ -2,13 +2,23 @@ using DrinkTea.BL.Services;
 using DrinkTea.DataAccess;
 using DrinkTea.DataAccess.Interfaces;
 using DrinkTea.DataAccess.Repositories;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Инфраструктура
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Превращает Enum в строку (и наоборот) при передаче по сети
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    // Это заставит Swagger отображать енамы как строки, если используется Swashbuckle
+    c.DescribeAllParametersInCamelCase();
+});
 
 // 2. DataAccess Layer
 // Передаем строку подключения из appsettings.json в фабрику

@@ -1,5 +1,6 @@
 ﻿using DrinkTea.DataAccess;
 using DrinkTea.DataAccess.Interfaces;
+using DrinkTea.Domain.Common;
 using DrinkTea.Domain.Entities;
 using System.Data;
 
@@ -21,7 +22,7 @@ public class SaleService(
     /// 	Списывает остаток со склада по розничной цене. 
     /// 	Если указан UserId и метод Internal — списывает средства с депозита.
     /// </remarks>
-    public async Task<Guid> SellAsync(Guid teaId, decimal grams, string method, Guid? userId = null)
+    public async Task<Guid> SellAsync(Guid teaId, decimal grams, PaymentMethod method, Guid? userId = null)
     {
         using var connection = db.CreateConnection();
         connection.Open();
@@ -40,7 +41,7 @@ public class SaleService(
             if (!stockUpdated) throw new Exception("Недостаточно чая на складе.");
 
             // 3. Если оплата с депозита — списываем баланс
-            if (method == "Internal")
+            if (method == PaymentMethod.Internal)
             {
                 if (!userId.HasValue) throw new Exception("Для оплаты с депозита нужен ID пользователя.");
 
