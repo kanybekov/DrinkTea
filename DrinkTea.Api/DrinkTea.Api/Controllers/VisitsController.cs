@@ -1,5 +1,4 @@
-﻿using DrinkTea.Api.Infrastructure;
-using DrinkTea.Api.Models.Responses;
+﻿using DrinkTea.Api.Models.Responses;
 using DrinkTea.BL.Services;
 using DrinkTea.Domain.Common;
 using Microsoft.AspNetCore.Authorization;
@@ -37,6 +36,8 @@ public class VisitsController(VisitService visitService) : ControllerBase
         [FromBody] CheckoutRequest req,
         [FromServices] UserContext userContext) // Внедряем контекст прямо в метод
     {
+        if (req.InternalAmount < 0 || req.ExternalAmount < 0) return BadRequest("Отрицательные числа!");
+
         // 1. Извлекаем ID мастера из токена
         var staffId = userContext.UserId;
 
@@ -119,10 +120,12 @@ public class VisitsController(VisitService visitService) : ControllerBase
     /// 	Закрыть счет гостя, списав сумму с депозита другого пользователя (друга).
     /// </summary>
     [HttpPost("{visitId:guid}/pay-by/{payerUserId:guid}")]
-    public async Task<IActionResult> PayForFriend(Guid visitId, Guid payerUserId)
+    [Authorize(Roles = "Master")]
+    public async Task<IActionResult> PayForFriend(Guid visitId, Guid payerUserId, [FromServices] UserContext userContext)
     {
-        await visitService.PayForFriendAsync(payerUserId, visitId);
-        return Ok(new { Message = "Счет друга успешно оплачен с вашего депозита" });
+        // Обязательно передаем кто зафиксировал оплату "за друга"
+        await visitService.PayForFriendAsync(payerUserId, visitId, userContext.UserId);
+        return Ok(new { Message = "Счет оплачен с депозита друга" });
     }
 }
 

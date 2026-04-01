@@ -1,5 +1,4 @@
-﻿using DrinkTea.Api.Infrastructure;
-using DrinkTea.Api.Models.Responses;
+﻿using DrinkTea.Api.Models.Responses;
 using DrinkTea.BL.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

@@ -1,4 +1,3 @@
-using DrinkTea.Api.Infrastructure;
 using DrinkTea.BL.Infrastructure;
 using DrinkTea.BL.Services;
 using DrinkTea.DataAccess;
@@ -82,6 +81,7 @@ builder.Services.AddScoped<VisitService>();
 builder.Services.AddScoped<SaleService>();
 builder.Services.AddScoped<TeaService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<UserService>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<UserContext>();

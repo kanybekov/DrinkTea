@@ -1,16 +1,8 @@
 ﻿using System.Security.Claims;
-using Microsoft.IdentityModel.Tokens;
+using DrinkTea.Domain.Enums;
 
-namespace DrinkTea.Api.Infrastructure;
-
-/// <summary>
-/// 	Предоставляет информацию о текущем авторизованном пользователе.
-/// </summary>
 public class UserContext(IHttpContextAccessor httpContextAccessor)
 {
-    /// <summary>
-    /// 	Получает ID текущего пользователя из Claims токена.
-    /// </summary>
     public Guid UserId
     {
         get
@@ -19,6 +11,21 @@ public class UserContext(IHttpContextAccessor httpContextAccessor)
                           ?? httpContextAccessor.HttpContext?.User.FindFirst("sub")?.Value;
 
             return Guid.TryParse(idClaim, out var guid) ? guid : Guid.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Получает роль текущего пользователя из Claims токена.
+    /// </summary>
+    public UserRoles Role
+    {
+        get
+        {
+            var roleClaim = httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.Role)?.Value
+                            ?? httpContextAccessor.HttpContext?.User.FindFirst("role")?.Value;
+
+            // Пробуем распарсить строку из токена в наш Enum
+            return Enum.TryParse<UserRoles>(roleClaim, out var role) ? role : UserRoles.Customer;
         }
     }
 }

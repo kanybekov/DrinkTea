@@ -86,4 +86,8 @@ public interface IVisitRepository
     /// 	Получает полный список транзакций за период с именами пользователей.
     /// </summary>
     Task<IEnumerable<dynamic>> GetDetailedTransactionsAsync(DateTime from, DateTime to);
+
+    Task<dynamic?> GetCustomerStatsAsync(Guid userId);
+
+    Task<IEnumerable<dynamic>> GetUserVisitHistoryAsync(Guid userId, int limit = 10);
 }

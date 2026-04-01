@@ -66,12 +66,11 @@ public class VisitService(
                 {
                     VisitId = visitId,
                     UserId = visit.UserId,
-                    StaffId = staffId, // Получаем из параметров метода
-                    Amount = externalAmount,
-                    PaymentMethod = method,
-                    Description = "Оплата визита"
+                    StaffId = staffId,
+                    Amount = internalAmount, // БЫЛО: externalAmount
+                    PaymentMethod = PaymentMethod.Internal, // Явно указываем Internal
+                    Description = "Оплата визита (Депозит)"
                 }, transaction);
-
             }
 
             // 2. Внешняя оплата (Cash/Card)
@@ -80,12 +79,14 @@ public class VisitService(
                 await visitRepo.RegisterTransactionAsync(new Transaction
                 {
                     VisitId = visitId,
-                    UserId = visit.UserId,
+                    UserId = visit.UserId, // Для анонима тут будет null, это правильно
                     Amount = externalAmount,
                     PaymentMethod = method,
-                    StaffId = staffId
+                    StaffId = staffId,
+                    Description = "Оплата визита"
                 }, transaction);
             }
+
 
             // 3. Закрытие визита
             await visitRepo.CloseAsync(visitId, transaction);
@@ -146,7 +147,7 @@ public class VisitService(
     /// </summary>
     /// <param name="payerUserId">	ID того, кто платит (постоянщик). </param>
     /// <param name="targetVisitId"> ID визита, который нужно закрыть (друг/аноним). </param>
-    public async Task PayForFriendAsync(Guid payerUserId, Guid targetVisitId)
+    public async Task PayForFriendAsync(Guid payerUserId, Guid targetVisitId, Guid staffId)
     {
         using var connection = db.CreateConnection();
         connection.Open();
@@ -165,13 +166,17 @@ public class VisitService(
             if (!success) throw new Exception("Недостаточно средств на балансе плательщика.");
 
             // 3. Фиксируем транзакцию (кто платил и за какой визит)
+            // В методе PayForFriendAsync
             await visitRepo.RegisterTransactionAsync(new Transaction
             {
                 VisitId = targetVisitId,
-                UserId = payerUserId, // Плательщик
+                UserId = payerUserId,
+                StaffId = staffId, // Нужно добавить в параметры метода
                 Amount = visit.TotalAmount,
-                PaymentMethod = PaymentMethod.Internal
+                PaymentMethod = PaymentMethod.Internal,
+                Description = $"Оплата за друга (Визит: {visit.Note ?? "без метки"})"
             }, transaction);
+
 
             // 4. Закрываем визит друга
             await visitRepo.CloseAsync(targetVisitId, transaction);

@@ -64,15 +64,25 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
 
         return rows > 0;
     }
-    public async Task<bool> UpdateUserBalanceAsync(Guid userId, decimal amount, IDbTransaction transaction)
+    public async Task<bool> UpdateUserBalanceAsync(Guid userId, decimal amount, IDbTransaction? transaction)
     {
+        // Если транзакция есть — берем её соединение. Если нет — создаем новое.
+        var connection = transaction?.Connection ?? db.CreateConnection();
+
         const string sql = "UPDATE Users SET Balance = Balance + @Amount WHERE Id = @UserId;";
-        var rows = await transaction.Connection.ExecuteAsync(sql, new { UserId = userId, Amount = amount }, transaction);
+
+        // Передаем объект транзакции в Dapper (если там null, Dapper поймет)
+        var rows = await connection.ExecuteAsync(sql, new { UserId = userId, Amount = amount }, transaction);
+
         return rows > 0;
     }
 
+
     public async Task RegisterTransactionAsync(Transaction tx, IDbTransaction transaction)
     {
+        // Если транзакция есть — берем её соединение. Если нет — создаем новое.
+        var connection = transaction?.Connection ?? db.CreateConnection();
+
         // 1. ПРОВЕРКА: Если в репозиторий пришли нули - это авария
         if (tx.StaffId == Guid.Empty)
         {
@@ -84,7 +94,7 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
 		VALUES (@Id, @VisitId, @UserId, @StaffId, @Amount, @PaymentMethod, @Description);";
 
         // 2. Явно указываем параметры, чтобы Dapper не ошибся с именами свойств
-        await transaction.Connection.ExecuteAsync(sql, new
+        await connection.ExecuteAsync(sql, new
         {
             Id = tx.Id == Guid.Empty ? Guid.NewGuid() : tx.Id,
             // Если UserId/VisitId пустые GUID, превращаем их в NULL для базы
@@ -168,25 +178,79 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
 
         const string sql = @"
 		SELECT 
-			t.Id, 
-			t.CreatedAt as Time, 
-			u.FullName as UserName, 
-			t.Amount, 
-			t.PaymentMethod as Method, 
-			t.VisitId,
-            COALESCE(v.Note, 'Оплата визита') as Description -- Добавляем заметку из визита
-			CASE 
-				WHEN t.VisitId IS NOT NULL THEN 'Оплата визита'
-				WHEN s.Id IS NOT NULL THEN 'Продажа: ' || tea.Name || ' (' || s.Grams || 'г)'
-				ELSE 'Пополнение баланса / Прочее'
-			END as Description
-		FROM Transactions t
-		LEFT JOIN Users u ON t.UserId = u.Id
-		LEFT JOIN Sales s ON t.Amount = s.TotalCost AND t.CreatedAt = s.CreatedAt -- Связка по сумме и времени
-		LEFT JOIN Teas tea ON s.TeaId = tea.Id
-		WHERE t.CreatedAt BETWEEN @From AND @To
-		ORDER BY t.CreatedAt DESC;";
+            t.Id, 
+            t.CreatedAt as Time, 
+            -- КТО: Приоритет FullName, если NULL (аноним) — берем Note из визита
+            COALESCE(u.FullName, v.Note, 'Розничный клиент') as Customer, 
+    
+            t.Amount, 
+            t.PaymentMethod as Method, 
+    
+            -- ЧТО: Используем системный Description из таблицы Transactions, 
+            -- который вы заполняете в BL (например, ""Оплата визита"", ""Пополнение"")
+            t.Description as Operation,
+    
+            -- ДОП: Кто из мастеров провел операцию
+            staff.FullName as MasterName
+        FROM Transactions t
+        LEFT JOIN Users u ON t.UserId = u.Id
+        LEFT JOIN Visits v ON t.VisitId = v.Id
+        LEFT JOIN Users staff ON t.StaffId = staff.Id
+        WHERE t.CreatedAt BETWEEN @From AND @To
+        ORDER BY t.CreatedAt DESC;
+";
 
         return await connection.QueryAsync(sql, new { From = from, To = to });
     }
+
+    public async Task<dynamic?> GetCustomerStatsAsync(Guid userId)
+    {
+        using var connection = db.CreateConnection();
+
+        const string sql = @"
+		SELECT 
+			u.Id, 
+			u.FullName as Name, 
+			u.Balance,
+			(SELECT COUNT(*) FROM Visits WHERE UserId = u.Id AND IsClosed = TRUE) as VisitsCount,
+			(
+				SELECT t.Name 
+				FROM BrewingParticipants p
+				JOIN BrewingSessions s ON p.SessionId = s.Id
+				JOIN Teas t ON s.TeaId = t.Id
+				WHERE p.VisitId IN (SELECT Id FROM Visits WHERE UserId = u.Id)
+				GROUP BY t.Name
+				ORDER BY COUNT(*) DESC
+				LIMIT 1
+			) as FavoriteTea
+		FROM Users u
+		WHERE u.Id = @UserId;";
+
+        return await connection.QueryFirstOrDefaultAsync(sql, new { UserId = userId });
+    }
+
+    public async Task<IEnumerable<dynamic>> GetUserVisitHistoryAsync(Guid userId, int limit = 10)
+    {
+        using var connection = db.CreateConnection();
+
+        const string sql = @"
+        SELECT 
+            v.Id,
+            v.StartTime as Date,
+            v.TotalAmount as Cost,
+            v.Note,
+            -- Собираем названия всех чаев за этот визит в одну строку
+            (SELECT STRING_AGG(DISTINCT t.Name, ', ') 
+             FROM BrewingParticipants p
+             JOIN BrewingSessions s ON p.SessionId = s.Id
+             JOIN Teas t ON s.TeaId = t.Id
+             WHERE p.VisitId = v.Id) as Teas
+        FROM Visits v
+        WHERE v.UserId = @UserId AND v.IsClosed = TRUE
+        ORDER BY v.StartTime DESC
+        LIMIT @Limit;";
+
+        return await connection.QueryAsync(sql, new { UserId = userId, Limit = limit });
+    }
+
 }
