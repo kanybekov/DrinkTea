@@ -76,4 +76,14 @@ public interface IVisitRepository
     /// <param name="userId">	ID пользователя. </param>
     /// <returns>	True, если у пользователя уже есть активный счет. </returns>
     Task<bool> HasActiveVisitAsync(Guid userId);
+
+    /// <summary>
+    /// 	Получает агрегированную статистику по платежам за указанный период.
+    /// </summary>
+    Task<IEnumerable<dynamic>> GetPaymentsSummaryAsync(DateTime from, DateTime to);
+
+    /// <summary>
+    /// 	Получает полный список транзакций за период с именами пользователей.
+    /// </summary>
+    Task<IEnumerable<dynamic>> GetDetailedTransactionsAsync(DateTime from, DateTime to);
 }

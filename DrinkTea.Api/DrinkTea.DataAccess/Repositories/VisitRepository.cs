@@ -118,5 +118,46 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
         return await connection.ExecuteScalarAsync<bool>(sql, new { UserId = userId });
     }
 
+    public async Task<IEnumerable<dynamic>> GetPaymentsSummaryAsync(DateTime from, DateTime to)
+    {
+        using var connection = db.CreateConnection();
 
+        const string sql = @"
+		SELECT 
+			PaymentMethod as Method, 
+			SUM(Amount) as Total,
+			COUNT(*) as Count
+		FROM Transactions
+		WHERE CreatedAt BETWEEN @From AND @To
+		GROUP BY PaymentMethod;";
+
+        return await connection.QueryAsync(sql, new { From = from, To = to });
+    }
+
+    public async Task<IEnumerable<dynamic>> GetDetailedTransactionsAsync(DateTime from, DateTime to)
+    {
+        using var connection = db.CreateConnection();
+
+        const string sql = @"
+		SELECT 
+			t.Id, 
+			t.CreatedAt as Time, 
+			u.FullName as UserName, 
+			t.Amount, 
+			t.PaymentMethod as Method, 
+			t.VisitId,
+			CASE 
+				WHEN t.VisitId IS NOT NULL THEN 'Оплата визита'
+				WHEN s.Id IS NOT NULL THEN 'Продажа: ' || tea.Name || ' (' || s.Grams || 'г)'
+				ELSE 'Пополнение баланса / Прочее'
+			END as Description
+		FROM Transactions t
+		LEFT JOIN Users u ON t.UserId = u.Id
+		LEFT JOIN Sales s ON t.Amount = s.TotalCost AND t.CreatedAt = s.CreatedAt -- Связка по сумме и времени
+		LEFT JOIN Teas tea ON s.TeaId = tea.Id
+		WHERE t.CreatedAt BETWEEN @From AND @To
+		ORDER BY t.CreatedAt DESC;";
+
+        return await connection.QueryAsync(sql, new { From = from, To = to });
+    }
 }

@@ -114,4 +114,28 @@ public class VisitService(
     {
         return await visitRepo.GetByIdAsync(id);
     }
+
+    /// <summary>
+    /// 	Получает агрегированные данные по платежам за день.
+    /// </summary>
+    /// <param name="date">	Выбранная дата. </param>
+    /// <returns>	Список анонимных объектов из базы. </returns>
+    public async Task<IEnumerable<dynamic>> GetRawDailyReportAsync(DateTime date)
+    {
+        var from = date.Date;
+        var to = from.AddDays(1).AddTicks(-1);
+
+        return await visitRepo.GetPaymentsSummaryAsync(from, to);
+    }
+
+    /// <summary>
+    /// 	Получает детальный лог всех денежных операций за день.
+    /// </summary>
+    public async Task<IEnumerable<dynamic>> GetRawDetailedReportAsync(DateTime date)
+    {
+        var from = date.Date;
+        var to = from.AddDays(1).AddTicks(-1);
+
+        return await visitRepo.GetDetailedTransactionsAsync(from, to);
+    }
 }
