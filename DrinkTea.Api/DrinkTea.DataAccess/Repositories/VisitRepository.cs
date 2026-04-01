@@ -72,4 +72,51 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
         await transaction.Connection.ExecuteAsync(sql, tx, transaction);
     }
 
+    public async Task<IEnumerable<dynamic>> GetActiveVisitsWithNamesAsync()
+    {
+        using var connection = db.CreateConnection();
+
+        const string sql = @"
+		SELECT 
+			v.Id, 
+			v.UserId, 
+			v.StartTime, 
+			v.TotalAmount, 
+			u.FullName as UserName
+		FROM Visits v
+		LEFT JOIN Users u ON v.UserId = u.Id
+		WHERE v.IsClosed = FALSE
+		ORDER BY v.StartTime DESC;";
+
+        return await connection.QueryAsync(sql);
+    }
+
+    public async Task<IEnumerable<dynamic>> GetVisitItemsAsync(Guid visitId)
+    {
+        using var connection = db.CreateConnection();
+
+        const string sql = @"
+		SELECT 
+			s.Id as SessionId,
+			t.Name as TeaName,
+			s.TotalGrams as Grams,
+			p.ShareCost as ShareCost,
+			s.CreatedAt as Time
+		FROM BrewingParticipants p
+		JOIN BrewingSessions s ON p.SessionId = s.Id
+		JOIN Teas t ON s.TeaId = t.Id
+		WHERE p.VisitId = @VisitId
+		ORDER BY s.CreatedAt DESC;";
+
+        return await connection.QueryAsync(sql, new { VisitId = visitId });
+    }
+
+    public async Task<bool> HasActiveVisitAsync(Guid userId)
+    {
+        using var connection = db.CreateConnection();
+        const string sql = "SELECT EXISTS(SELECT 1 FROM Visits WHERE UserId = @UserId AND IsClosed = FALSE);";
+        return await connection.ExecuteScalarAsync<bool>(sql, new { UserId = userId });
+    }
+
+
 }

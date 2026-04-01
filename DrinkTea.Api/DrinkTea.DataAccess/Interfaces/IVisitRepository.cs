@@ -62,4 +62,18 @@ public interface IVisitRepository
     /// </summary>
     Task RegisterTransactionAsync(Transaction tx, IDbTransaction transaction);
 
+    /// <summary>
+    /// 	Получает список всех незакрытых визитов с именами гостей.
+    /// </summary>
+    /// <returns> Список активных визитов для панели мастера. </returns>
+    Task<IEnumerable<dynamic>> GetActiveVisitsWithNamesAsync();
+
+    Task<IEnumerable<dynamic>> GetVisitItemsAsync(Guid visitId);
+
+    /// <summary>
+    /// 	Проверяет наличие незакрытого визита для конкретного пользователя.
+    /// </summary>
+    /// <param name="userId">	ID пользователя. </param>
+    /// <returns>	True, если у пользователя уже есть активный счет. </returns>
+    Task<bool> HasActiveVisitAsync(Guid userId);
 }

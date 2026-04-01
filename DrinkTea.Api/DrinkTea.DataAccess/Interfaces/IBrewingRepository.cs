@@ -60,4 +60,8 @@ public interface IBrewingRepository
     /// </summary>
     Task<List<BrewingParticipant>> GetParticipantsBySessionIdAsync(Guid sessionId, IDbTransaction transaction);
 
+    /// <summary>
+    /// 	Полностью удаляет сессию заваривания из базы данных.
+    /// </summary>
+    Task DeleteSessionAsync(Guid sessionId, IDbTransaction transaction);
 }

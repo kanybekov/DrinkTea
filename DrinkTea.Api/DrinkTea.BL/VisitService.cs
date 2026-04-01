@@ -13,11 +13,20 @@ public class VisitService(
     IVisitRepository visitRepo)
 {
     /// <summary>
-    /// 	Открывает новый визит (Check-in).
+    /// 	Открывает новый визит, предотвращая дубликаты для постоянных клиентов.
     /// </summary>
-    /// <param name="userId"> Идентификатор клиента или null для анонима. </param>
     public async Task<Visit> StartVisitAsync(Guid? userId)
     {
+        if (userId.HasValue)
+        {
+            // Бизнес-правило: один постоянщик — один активный визит
+            var alreadyInClub = await visitRepo.HasActiveVisitAsync(userId.Value);
+            if (alreadyInClub)
+            {
+                throw new InvalidOperationException("У этого пользователя уже есть открытый визит. Сначала закройте текущий счет.");
+            }
+        }
+
         return await visitRepo.CreateAsync(userId);
     }
 
@@ -85,5 +94,23 @@ public class VisitService(
             transaction.Rollback();
             throw;
         }
+    }
+
+    /// <summary>
+    /// 	Возвращает список всех гостей, которые сейчас находятся в клубе.
+    /// </summary>
+    public async Task<IEnumerable<dynamic>> GetActiveDashboardAsync()
+    {
+        return await visitRepo.GetActiveVisitsWithNamesAsync();
+    }
+
+    /// <summary>
+    /// 	Получает полную информацию о визите по его идентификатору.
+    /// </summary>
+    /// <param name="id">	Уникальный идентификатор визита. </param>
+    /// <returns>	Объект визита (Domain Entity). </returns>
+    public async Task<Visit?> GetVisitByIdAsync(Guid id)
+    {
+        return await visitRepo.GetByIdAsync(id);
     }
 }

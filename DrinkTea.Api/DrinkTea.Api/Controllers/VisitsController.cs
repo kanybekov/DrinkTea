@@ -1,4 +1,5 @@
-﻿using DrinkTea.BL.Services;
+﻿using DrinkTea.Api.Models.Responses;
+using DrinkTea.BL.Services;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
@@ -8,8 +9,16 @@ public class VisitsController(VisitService visitService) : ControllerBase
     [HttpPost("checkin")]
     public async Task<IActionResult> CheckIn([FromBody] Guid? userId)
     {
-        var visit = await visitService.StartVisitAsync(userId);
-        return Ok(visit);
+        try
+        {
+            var visit = await visitService.StartVisitAsync(userId);
+            return Ok(visit);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Возвращаем 400 Bad Request с понятным описанием для мастера
+            return BadRequest(new { Message = ex.Message });
+        }
     }
 
     [HttpPost("{id:guid}/checkout")]
@@ -17,6 +26,16 @@ public class VisitsController(VisitService visitService) : ControllerBase
     {
         await visitService.CheckoutAsync(id, req.InternalAmount, req.ExternalAmount, req.Method);
         return Ok(new { Status = "Closed" });
+    }
+
+    /// <summary>
+    /// 	Получить список активных визитов для панели мониторинга.
+    /// </summary>
+    [HttpGet("active")]
+    public async Task<IActionResult> GetActive()
+    {
+        var activeVisits = await visitService.GetActiveDashboardAsync();
+        return Ok(activeVisits);
     }
 }
 

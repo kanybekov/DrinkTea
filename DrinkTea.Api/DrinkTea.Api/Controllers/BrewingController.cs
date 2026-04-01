@@ -1,4 +1,5 @@
-﻿using DrinkTea.BL.Services;
+﻿using DrinkTea.Api.Models.Responses;
+using DrinkTea.BL.Services;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
@@ -34,6 +35,51 @@ public class BrewingController(BrewingService service) : ControllerBase
             // В реальном проекте здесь лучше использовать кастомные исключения
             return BadRequest(new { Error = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// 	Удалить гостя из сессии заваривания (отмена участия).
+    /// </summary>
+    [HttpDelete("{sessionId:guid}/participants/{visitId:guid}")]
+    public async Task<IActionResult> Leave(Guid sessionId, Guid visitId)
+    {
+        await service.LeaveSessionAsync(sessionId, visitId);
+        return Ok(new { Message = "Участник удален, доли пересчитаны" });
+    }
+
+    /// <summary>
+    /// 	Полная отмена ошибочной заварки.
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Cancel(Guid id)
+    {
+        await service.CancelSessionAsync(id);
+        return Ok(new { Message = "Заварка отменена, чай возвращен на склад, счета очищены" });
+    }
+
+    /// <summary>
+    /// 	Получить детализацию всех чаепитий для конкретного визита.
+    /// </summary>
+    /// <remarks>
+    /// 	Данные используются для отрисовки списка заварок в карточке гостя.
+    /// </remarks>
+    /// <param name="visitId">	ID визита (счета). </param>
+    [HttpGet("by-visit/{visitId:guid}")]
+    public async Task<IActionResult> GetByVisit(Guid visitId)
+    {
+        // 1. Вызываем метод через сервис бизнес-логики
+        var rawItems = await service.GetVisitHistoryAsync(visitId);
+
+        // 2. Маппим результат в нашу Response-модель (record)
+        var items = rawItems.Select(x => new VisitItemResponse(
+            (Guid)x.sessionid,
+            (string)x.teaname,
+            (decimal)x.grams,
+            (decimal)x.sharecost,
+            (DateTime)x.time
+        ));
+
+        return Ok(items);
     }
 }
 

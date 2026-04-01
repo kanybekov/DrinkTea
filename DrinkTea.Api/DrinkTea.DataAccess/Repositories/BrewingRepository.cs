@@ -68,5 +68,9 @@ public class BrewingRepository(DbConnectionFactory db) : IBrewingRepository
         var result = await transaction.Connection.QueryAsync<BrewingParticipant>(sql, new { SessionId = sessionId }, transaction);
         return result.ToList();
     }
-
+    public async Task DeleteSessionAsync(Guid sessionId, IDbTransaction transaction)
+    {
+        const string sql = "DELETE FROM BrewingSessions WHERE Id = @Id;";
+        await transaction.Connection.ExecuteAsync(sql, new { Id = sessionId }, transaction);
+    }
 }
