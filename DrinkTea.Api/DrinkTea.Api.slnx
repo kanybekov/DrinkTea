@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="../DrinkTea.Domain/DrinkTea.Domain.csproj" Id="b0d13394-4a70-45a0-a65a-cd4917891cfb" />
+  <Project Path="DrinkTea.Api/DrinkTea.Api.csproj" />
+  <Project Path="DrinkTea.BL/DrinkTea.BL.csproj" Id="6fead40c-a418-410c-900e-b00fde14acea" />
+  <Project Path="DrinkTea.DataAccess/DrinkTea.DataAccess.csproj" Id="94a3baec-8aae-4769-9da1-a86521dc42b7" />
+</Solution>

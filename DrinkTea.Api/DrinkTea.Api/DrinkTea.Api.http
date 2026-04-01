@@ -1,0 +1,6 @@
+@DrinkTea.Api_HostAddress = http://localhost:5068
+
+GET {{DrinkTea.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
