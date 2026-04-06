@@ -112,23 +112,23 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
     public async Task<IEnumerable<dynamic>> GetActiveVisitsWithNamesAsync()
     {
         using var connection = db.CreateConnection();
-
         const string sql = @"
-		SELECT 
-			v.Id, 
-			v.UserId, 
-			v.StartTime, 
-		    v.TotalAmount as UnpaidDebt, 
-		    u.Balance as UserDeposit,    
-			u.FullName as UserName,
-		    v.Note
-		FROM Visits v
-		LEFT JOIN Users u ON v.UserId = u.Id
-		WHERE v.IsClosed = FALSE
-		ORDER BY v.StartTime DESC;";
+        SELECT 
+            v.id as Id, 
+            v.userid as UserId, -- Обязательно вытягиваем ID юзера
+            u.fullname as UserName, 
+            v.note as Note, 
+            v.totalamount as UnpaidDebt, 
+            u.balance as UserDeposit, 
+            v.starttime as StartTime
+        FROM visits v
+        LEFT JOIN users u ON v.userid = u.id
+        WHERE v.isclosed = FALSE
+        ORDER BY v.starttime DESC;";
 
         return await connection.QueryAsync(sql);
     }
+
 
     public async Task<IEnumerable<dynamic>> GetVisitItemsAsync(Guid visitId)
     {

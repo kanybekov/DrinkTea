@@ -3,6 +3,7 @@
 public class ActiveVisitDto
 {
     public Guid Id { get; set; }
+    public Guid? UserId { get; set; } 
     public string? UserName { get; set; }
     public string? Note { get; set; }
     public decimal UnpaidDebt { get; set; }

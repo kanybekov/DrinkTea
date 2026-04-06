@@ -1,4 +1,77 @@
 ﻿@inherits LayoutComponentBase
-<div style="border: 10px solid green; min-height: 100vh; padding: 20px;">
-    @Body
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="page">
+    <AuthorizeView>
+        <Authorized>
+            @* ВЕРХНЯЯ ПАНЕЛЬ НАВИГАЦИИ (Видна только вошедшим) *@
+            <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm px-4 mb-4">
+                <div class="container-fluid">
+                    <a class="navbar-brand fw-bold text-success" href="/">
+                        <i class="bi bi-cup-hot-fill me-2"></i>DrinkTea v1.1
+                    </a>
+                    
+                    <div class="collapse navbar-collapse">
+                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                            @* Кнопки только для МАСТЕРА *@
+                            <AuthorizeView Roles="Master" Context="masterContext">
+                                <li class="nav-item">
+                                    <button class="btn btn-dark d-flex align-items-center gap-2" @onclick='() => Nav.NavigateTo("/")'>
+                                        <i class="bi bi-house-door"></i> Зал
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="btn btn-dark d-flex align-items-center gap-2" @onclick='() => Nav.NavigateTo("/inventory")'>
+                                        <i class="bi bi-box-seam"></i> Склад
+                                    </button>
+                                </li>
+                                @* Сюда можно добавить "Отчеты" или "Магазин" *@
+                            </AuthorizeView>
+                        </ul>
+
+                        @* Блок профиля и выхода *@
+                        <div class="d-flex align-items-center gap-3 text-white">
+                            <span class="small opacity-75">
+                                <i class="bi bi-person-circle me-1"></i> @context.User.Identity?.Name
+                            </span>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="HandleLogout">
+                                <i class="bi bi-box-arrow-right"></i> Выход
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </Authorized>
+    </AuthorizeView>
+
+    <main>
+        <div class="container-fluid px-4">
+            @Body
+        </div>
+    </main>
 </div>
+
+@code {
+    private async Task HandleLogout()
+    {
+        // Чистим мусор и на логин
+        await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
+        await JS.InvokeVoidAsync("localStorage.removeItem", "userName");
+        
+        // Принудительно перезагружаем страницу, чтобы сбросить AuthenticationState
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
+}
+
+@* Стили для красоты *@
+<style>
+    .navbar .btn { border: none; border-radius: 8px; transition: 0.2s; }
+    .navbar .btn:hover { background: rgba(255,255,255,0.1); color: #198754; }
+    main { min-height: 80vh; }
+    
+    /* Зеленая рамка из твоего ТЗ, если она еще нужна, оставь, 
+       но обычно в продакшене её убирают */
+    /* .page { border: 5px solid #198754; min-height: 100vh; } */
+</style>
