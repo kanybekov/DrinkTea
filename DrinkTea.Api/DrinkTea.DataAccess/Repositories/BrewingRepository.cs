@@ -105,4 +105,18 @@ public class BrewingRepository(DbConnectionFactory db) : IBrewingRepository
         return await connection.QueryAsync(sql);
     }
 
+    public async Task<bool> UpdateParticipantShareAsync(Guid sessionId, Guid visitId, decimal newShare, IDbTransaction transaction)
+    {
+        const string sql = @"
+        UPDATE BrewingParticipants 
+        SET ShareCost = @NewShare 
+        WHERE SessionId = @SessionId AND VisitId = @VisitId;";
+
+        var rows = await transaction.Connection.ExecuteAsync(sql,
+            new { SessionId = sessionId, VisitId = visitId, NewShare = newShare },
+            transaction);
+
+        return rows > 0;
+    }
+
 }

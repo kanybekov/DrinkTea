@@ -1,14 +1,12 @@
-﻿using DrinkTea.DataAccess.Interfaces;
+﻿using DrinkTea.DataAccess;
+using DrinkTea.DataAccess.Interfaces;
 using DrinkTea.Shared.Enums;
 using DrinkTea.Domain.Entities;
 
 namespace DrinkTea.BL.Services;
 
-public class UserService(IUserRepository userRepo, IVisitRepository visitRepo)
+public class UserService(IUserRepository userRepo, IVisitRepository visitRepo, DbConnectionFactory db)
 {
-    /// <summary>
-    /// 	Регистрирует нового пользователя (клиента или мастера).
-    /// </summary>
     public async Task<Guid> CreateUserAsync(string fullName, string login, string password, UserRoles role)
     {
         var user = new User
@@ -26,39 +24,47 @@ public class UserService(IUserRepository userRepo, IVisitRepository visitRepo)
     }
 
     /// <summary>
-    /// 	Пополняет баланс пользователя (депозит).
+    /// 	Пополняет баланс пользователя (депозит) внутри транзакции.
     /// </summary>
-    /// <param name="staffId"> Кто принял деньги. </param>
     public async Task TopUpBalanceAsync(Guid userId, decimal amount, PaymentMethod method, Guid staffId)
     {
-        // 1. Увеличиваем баланс в таблице Users
-        await visitRepo.UpdateUserBalanceAsync(userId, amount, null); // Передаем null в транзакцию, если работаем без неё здесь
+        using var connection = db.CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
 
-        // 2. Фиксируем пополнение в транзакциях
-        await visitRepo.RegisterTransactionAsync(new Transaction
+        try
         {
-            UserId = userId,
-            StaffId = staffId,
-            Amount = amount,
-            PaymentMethod = method,
-            Description = $"Пополнение баланса"
-        }, null);
+            // 1. Увеличиваем баланс в таблице Users (теперь передаем транзакцию)
+            var success = await visitRepo.UpdateUserBalanceAsync(userId, amount, transaction);
+            if (!success) throw new Exception("Пользователь не найден или ошибка обновления.");
+
+            // 2. Фиксируем пополнение в транзакциях
+            await visitRepo.RegisterTransactionAsync(new Transaction
+            {
+                UserId = userId,
+                StaffId = staffId,
+                Amount = amount,
+                PaymentMethod = method,
+                Description = $"Пополнение баланса ({method})"
+            }, transaction);
+
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
 
     public async Task<User> GetUserAsync(Guid id)
     {
-        return await userRepo.GetByIdAsync(id)
-            ?? throw new Exception("Пользователь не найден");
+        return await userRepo.GetByIdAsync(id) ?? throw new Exception("Пользователь не найден");
     }
 
     public async Task<dynamic> GetUserStatisticsAsync(Guid userId)
     {
-        var user = await userRepo.GetByIdAsync(userId)
-                   ?? throw new Exception("Пользователь не найден");
-
-        var stats = await visitRepo.GetCustomerStatsAsync(userId);
-
-        return stats;
+        return await visitRepo.GetCustomerStatsAsync(userId) ?? throw new Exception("Статистика не найдена");
     }
 
     public async Task<dynamic> GetUserFullProfileAsync(Guid userId)
@@ -66,11 +72,6 @@ public class UserService(IUserRepository userRepo, IVisitRepository visitRepo)
         var stats = await visitRepo.GetCustomerStatsAsync(userId);
         var history = await visitRepo.GetUserVisitHistoryAsync(userId);
 
-        return new
-        {
-            Summary = stats,
-            RecentVisits = history
-        };
+        return new { Summary = stats, RecentVisits = history };
     }
-
 }

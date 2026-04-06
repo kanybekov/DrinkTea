@@ -68,4 +68,6 @@ public interface IBrewingRepository
     Task DeleteSessionAsync(Guid sessionId, IDbTransaction transaction);
 
     Task<IEnumerable<dynamic>> GetActiveSessionsWithParticipantsAsync();
+
+    Task<bool> UpdateParticipantShareAsync(Guid sessionId, Guid visitId, decimal newShare, IDbTransaction transaction);
 }
