@@ -199,17 +199,30 @@ public class BrewingService(
     public async Task<IEnumerable<ActiveBrewingDto>> GetActiveSessionsAsync()
     {
         var rawData = await brewingRepo.GetActiveSessionsWithParticipantsAsync();
+
         return rawData.Select(x => {
-            var row = (IDictionary<string, object>)x;
+            // Приводим к словарю с игнорированием регистра ключей
+            var row = new Dictionary<string, object>((IDictionary<string, object>)x, StringComparer.OrdinalIgnoreCase);
+
+            // Безопасно достаем JSON участников
+            string json = row.ContainsKey("participantsjson")
+                ? row["participantsjson"]?.ToString() ?? "[]"
+                : "[]";
+
             return new ActiveBrewingDto
             {
-                Id = (Guid)row["Id"],
-                TeaName = row["TeaName"]?.ToString() ?? "",
-                Grams = Convert.ToDecimal(row["Grams"]),
-                TotalCost = Convert.ToDecimal(row["TotalCost"]),
-                CreatedAt = (DateTime)row["CreatedAt"],
-                ParticipantNames = row["Participants"]?.ToString()?.Split(", ").ToList() ?? new List<string>()
+                Id = row.ContainsKey("id") ? (Guid)row["id"] : Guid.Empty,
+                TeaName = row.ContainsKey("teaname") ? row["teaname"]?.ToString() ?? "Без названия" : "Без названия",
+                Grams = row.ContainsKey("grams") ? Convert.ToDecimal(row["grams"]) : 0m,
+                TotalCost = row.ContainsKey("totalcost") ? Convert.ToDecimal(row["totalcost"]) : 0m,
+                CreatedAt = row.ContainsKey("createdat") ? (DateTime)row["createdat"] : DateTime.Now,
+
+                // Десериализация с защитой от null
+                Participants = System.Text.Json.JsonSerializer.Deserialize<List<ParticipantDto>>(json)
+                               ?? new List<ParticipantDto>()
             };
         }).ToList();
     }
+
+
 }

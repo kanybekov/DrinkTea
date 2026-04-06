@@ -1,5 +1,7 @@
 ﻿@page "/login"
+@using DrinkTea.Shared.Enums
 @using DrinkTea.Shared.Models.Requests
+@using DrinkTea.Shared.Models.Responses
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.JSInterop
 @attribute [AllowAnonymous]
@@ -65,14 +67,20 @@
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
-                if (result != null && !string.IsNullOrEmpty(result.Token))
+                if (result != null)
                 {
-                    // Сохраняем токен и имя в localStorage через стандартный JS Interop
                     await JS.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
                     await JS.InvokeVoidAsync("localStorage.setItem", "userName", result.FullName);
 
-                    // Переходим в главный зал
-                    Nav.NavigateTo("/");
+                    // ТЕПЕРЬ ОШИБКИ НЕ БУДЕТ:
+                    if (result.Role == DrinkTea.Shared.Enums.UserRoles.Master)
+                    {
+                        Nav.NavigateTo("/dashboard");
+                    }
+                    else
+                    {
+                        Nav.NavigateTo("/my-profile");
+                    }
                 }
             }
             else
@@ -95,12 +103,5 @@
     private async Task HandleKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter") await HandleLogin();
-    }
-
-    // Вспомогательный класс для чтения ответа API
-    public class LoginResponse
-    {
-        public string Token { get; set; } = "";
-        public string FullName { get; set; } = "";
     }
 }

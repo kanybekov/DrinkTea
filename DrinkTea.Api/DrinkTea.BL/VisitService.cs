@@ -11,13 +11,22 @@ public class VisitService(DbConnectionFactory db, IVisitRepository visitRepo)
     public async Task<Visit> StartVisitAsync(Guid? userId, string? note)
     {
         if (userId == Guid.Empty) userId = null;
+
+        // КРИТИЧЕСКАЯ ПРОВЕРКА: Если это не постоянщик, то заметка (номер стола/имя) обязательна
+        if (!userId.HasValue && string.IsNullOrWhiteSpace(note))
+        {
+            throw new ArgumentException("Для анонимного гостя необходимо указать имя или номер стола.");
+        }
+
         if (userId.HasValue)
         {
             var alreadyInClub = await visitRepo.HasActiveVisitAsync(userId.Value);
             if (alreadyInClub) throw new InvalidOperationException("Пользователь уже в клубе.");
         }
+
         return await visitRepo.CreateAsync(userId, note);
     }
+
 
     /// <summary>
     /// 	Закрывает визит. Оплата проводится ровно на указанные суммы.

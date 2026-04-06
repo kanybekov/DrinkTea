@@ -7,5 +7,13 @@ public class ActiveBrewingDto
     public decimal Grams { get; set; }
     public decimal TotalCost { get; set; }
     public DateTime CreatedAt { get; set; }
-    public List<string> ParticipantNames { get; set; } = new();
+
+    // Вместо List<string> теперь список объектов с ID
+    public List<ParticipantDto> Participants { get; set; } = new();
+}
+
+public class ParticipantDto
+{
+    public Guid VisitId { get; set; }
+    public string Name { get; set; } = "";
 }

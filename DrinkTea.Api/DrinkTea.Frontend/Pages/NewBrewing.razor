@@ -1,7 +1,10 @@
 ﻿@page "/brewing/new"
 @page "/brewing/new/{visitId:guid}"
+@attribute [Authorize(Roles = "Master")]
+
 @using DrinkTea.Shared.Models.Requests
 @using DrinkTea.Shared.Models.Responses
+@using Microsoft.AspNetCore.Authorization
 @inject HttpClient Http
 @inject NavigationManager Nav
 

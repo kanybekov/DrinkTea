@@ -11,9 +11,21 @@ namespace DrinkTea.DataAccess.Repositories
         public async Task<User?> GetByLoginAsync(string login)
         {
             using var connection = db.CreateConnection();
-            const string sql = "SELECT * FROM Users WHERE Login = @Login;";
+            // Явно указываем алиасы, чтобы Dapper точно нашел свойства
+            const string sql = @"
+        SELECT 
+            id as Id, 
+            fullname as FullName, 
+            login as Login, 
+            passwordhash as PasswordHash, 
+            role as Role, 
+            balance as Balance 
+        FROM Users 
+        WHERE login = @Login;";
+
             return await connection.QueryFirstOrDefaultAsync<User>(sql, new { Login = login });
         }
+
 
         public async Task<User?> GetByIdAsync(Guid id)
         {

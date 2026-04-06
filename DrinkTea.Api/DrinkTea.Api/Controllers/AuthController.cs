@@ -16,15 +16,13 @@ public class AuthController(AuthService authService, JwtProvider jwtProvider) : 
         try
         {
             var user = await authService.AuthenticateAsync(req.Username, req.Password);
-
-            // Генерируем токен (нужно внедрить JwtProvider в контроллер)
             var token = jwtProvider.GenerateToken(user);
 
-            return Ok(new
+            return Ok(new DrinkTea.Shared.Models.Responses.LoginResponse
             {
                 Token = token,
                 FullName = user.FullName,
-                Role = user.Role
+                Role = user.Role // Теперь роль улетает на фронт
             });
         }
         catch (Exception ex)
@@ -32,6 +30,5 @@ public class AuthController(AuthService authService, JwtProvider jwtProvider) : 
             return Unauthorized(new { Message = ex.Message });
         }
     }
-
 }
 

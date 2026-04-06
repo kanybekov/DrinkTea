@@ -1,6 +1,9 @@
 ﻿@page "/checkin"
+@attribute [Authorize(Roles = "Master")]
+
 @using DrinkTea.Shared.Models.Requests
 @using DrinkTea.Shared.Models.Responses
+@using Microsoft.AspNetCore.Authorization
 @inject HttpClient Http
 @inject NavigationManager Nav
 
@@ -10,13 +13,13 @@
 
         <div class="mb-3">
             <label class="form-label text-muted">Выбрать клиента (если постоянный)</label>
-            <select class="form-select" @bind="request.UserId">
+            <select class="form-select form-select-lg" @bind="SelectedUserIdString">
                 <option value="">-- Анонимный гость --</option>
                 @if (users != null)
                 {
                     @foreach (var u in users)
                     {
-                        <option value="@u.Id">@u.FullName (@u.Balance ₽)</option>
+                        <option value="@u.Id.ToString()">@u.FullName (@u.Balance ₽)</option>
                     }
                 }
             </select>
@@ -24,7 +27,7 @@
 
         <div class="mb-4">
             <label class="form-label text-muted">Заметка / Номер стола</label>
-            <input @bind="request.Note" class="form-control form-control-lg" placeholder="Например: Стол 3" />
+            <input @bind="request.Note" @bind:event="oninput" class="form-control form-control-lg" placeholder="Например: Стол 3" />
         </div>
 
         @if (error != null)
@@ -34,10 +37,12 @@
 
         <div class="d-flex gap-2">
             <button class="btn btn-light flex-grow-1" @onclick='() => Nav.NavigateTo("/")'>Отмена</button>
-            <button class="btn btn-success flex-grow-1" @onclick="HandleCheckIn" disabled="@loading">
+            <button class="btn btn-success flex-grow-1"
+                    @onclick="HandleCheckIn"
+                    disabled="@(IsInvalid || loading)">
                 @if (loading)
                 {
-                    <span class="spinner-border spinner-border-sm"></span>
+                    <span class="spinner-border spinner-border-sm me-1"></span>
                 }
                 Открыть счет
             </button>
@@ -47,27 +52,48 @@
 
 @code {
     private CheckInRequest request = new();
-    private List<dynamic>? users; // Временно динамик для списка юзеров
+    private List<UserListItemDto>? users;
     private string? error;
     private bool loading;
 
+    // Blazor плохо биндит Guid? к Select напрямую, используем строку-прослойку
+    private string? SelectedUserIdString
+    {
+        get => request.UserId?.ToString();
+        set => request.UserId = string.IsNullOrEmpty(value) ? null : Guid.Parse(value);
+    }
+
+    // Кнопка активна, если выбран юзер ИЛИ написана заметка
+    private bool IsInvalid => request.UserId == null && string.IsNullOrWhiteSpace(request.Note);
+
     protected override async Task OnInitializedAsync()
     {
-        // Загружаем список всех юзеров для выпадающего списка
-        try { users = await Http.GetFromJsonAsync<List<dynamic>>("api/users/list"); } catch { }
+        try
+        {
+            // ПРОВЕРЬ: этот эндпоинт на бэкенде должен возвращать List<UserListItemDto>
+            users = await Http.GetFromJsonAsync<List<UserListItemDto>>("api/users");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Ошибка загрузки юзеров: " + ex.Message);
+        }
     }
 
     private async Task HandleCheckIn()
     {
         loading = true;
+        error = null;
+
         var response = await Http.PostAsJsonAsync("api/visits/checkin", request);
+        
         if (response.IsSuccessStatusCode)
         {
             Nav.NavigateTo("/");
         }
         else
         {
-            error = "Ошибка. Возможно, гость уже в клубе.";
+            var msg = await response.Content.ReadAsStringAsync();
+            error = string.IsNullOrWhiteSpace(msg) ? "Ошибка. Возможно, гость уже в клубе." : msg;
         }
         loading = false;
     }

@@ -1,4 +1,6 @@
 ﻿@page "/brewing/join/{sessionId:guid}"
+@attribute [Authorize(Roles = "Master")]
+
 @using DrinkTea.Shared.Models.Requests
 @using DrinkTea.Shared.Models.Responses
 @using Microsoft.AspNetCore.Authorization
@@ -23,9 +25,10 @@
                 <div class="mb-4 text-center p-3 bg-light rounded-3">
                     <div class="small text-muted text-uppercase fw-bold">Текущий состав:</div>
                     <div class="mt-2">
-                        @foreach (var name in sessionInfo?.ParticipantNames ?? new())
+                        @* Заменяем ParticipantNames на Participants *@
+                        @foreach (var p in sessionInfo?.Participants ?? new())
                         {
-                            <span class="badge bg-secondary me-1">@name</span>
+                            <span class="badge bg-secondary me-1">@p.Name</span>
                         }
                     </div>
                 </div>
@@ -34,7 +37,8 @@
                     <label class="form-label fw-bold">Кто присоединяется?</label>
                     <select class="form-select form-select-lg" @bind="targetVisitId">
                         <option value="">-- Выберите гостя из зала --</option>
-                        @foreach (var v in activeVisits.Where(v => !sessionInfo?.ParticipantNames.Contains(v.UserName ?? v.Note) ?? true))
+                        @* Обновляем фильтр: проверяем наличие имени в списке объектов Participants *@
+                        @foreach (var v in activeVisits.Where(v => !sessionInfo?.Participants.Any(p => p.Name == (v.UserName ?? v.Note)) ?? true))
                         {
                             <option value="@v.Id">@(v.UserName ?? v.Note) (Долг: @v.UnpaidDebt ₽)</option>
                         }

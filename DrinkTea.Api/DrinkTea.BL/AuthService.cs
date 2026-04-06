@@ -15,18 +15,22 @@ public class AuthService(IUserRepository userRepo)
     /// <returns> Объект пользователя, если данные верны. </returns>
     public async Task<User> AuthenticateAsync(string login, string password)
     {
-        // 1. Ищем человека в базе
         var user = await userRepo.GetByLoginAsync(login)
             ?? throw new Exception("Пользователь не найден");
 
-        // 2. Проверяем, есть ли у него вообще пароль
+        // ЛОГИРОВАНИЕ ДЛЯ ОТЛАДКИ
+        Console.WriteLine($"--- AUTH DEBUG ---");
+        Console.WriteLine($"Login: [{user.Login}]");
+        Console.WriteLine($"Input Password: [{password}] (Length: {password?.Length})");
+        Console.WriteLine($"Hash from DB: [{user.PasswordHash}] (Length: {user.PasswordHash?.Length})");
+
         if (string.IsNullOrEmpty(user.PasswordHash))
-            throw new Exception("Для этого аккаунта не задан пароль");
+            throw new Exception("Ошибка маппинга: Пароль в объекте User пустой!");
 
-        // 3. Сверяем введенный пароль с хэшем в базе
-        bool isValid = BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+        // Убираем возможные пробелы, которые могли прилететь из БД
+        bool isValid = BCrypt.Net.BCrypt.Verify(password.Trim(), user.PasswordHash.Trim());
 
-        if (!isValid) throw new Exception("Неверный пароль");
+        if (!isValid) throw new Exception("BCrypt: Пароль не подошел к хэшу");
 
         return user;
     }

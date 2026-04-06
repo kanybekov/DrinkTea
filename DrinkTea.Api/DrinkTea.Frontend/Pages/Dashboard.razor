@@ -1,6 +1,9 @@
 ﻿@page "/"
 @page "/dashboard"
+@attribute [Authorize(Roles = "Master")]
+
 @using DrinkTea.Shared.Models.Responses
+@using Microsoft.AspNetCore.Authorization
 @implements IDisposable
 @inject HttpClient Http
 @inject NavigationManager Nav
@@ -99,21 +102,22 @@
                                 <td class="fw-bold">@s.TeaName</td>
                                 <td>@s.Grams.ToString("0.0") г</td>
                                 <td>
-                                    @foreach (var name in s.ParticipantNames)
+                                    @foreach (var p in s.Participants)
                                     {
-                                        <span class="badge bg-info-subtle text-info border border-info-subtle me-1 position-relative pe-3">
-                                            <i class="bi bi-person-fill small"></i> @name
-            
-                                            @* Кнопка удаления участника (крестик) *@
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle me-1 position-relative pe-4">
+                                            <i class="bi bi-person-fill small"></i> @p.Name
+
+                                            @* Кнопка удаления участника теперь использует p.VisitId *@
                                             <button type="button"
                                                     class="btn-close position-absolute top-50 end-0 translate-middle-y me-1"
                                                     style="font-size: 0.5rem; filter: invert(0.5);"
-                                                    @onclick="() => RemoveFromSession(s.Id, name)"
+                                                    @onclick="() => RemoveFromSession(s.Id, p.VisitId)"
                                                     title="Удалить из этой заварки">
                                             </button>
                                         </span>
                                     }
                                 </td>
+
                                 <td class="text-muted">@s.CreatedAt.ToShortTimeString()</td>
                                 <td class="text-end">
                                     <div class="d-flex justify-content-end gap-2">
@@ -156,8 +160,16 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
-        // Запускаем авто-обновление каждые 30 секунд
-        _timer = new System.Threading.Timer(async _ => await InvokeAsync(LoadData), null, 3000000, 3000000);
+        
+        // Запускаем авто-обновление каждые 10 секунд
+        _timer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadData();
+                StateHasChanged(); // Принудительно перерисовываем UI
+            });
+        }, null, 10000, 10000);
     }
 
     private async Task LoadData()
@@ -166,62 +178,37 @@
         {
             activeVisits = await Http.GetFromJsonAsync<List<ActiveVisitDto>>("api/visits/active");
             activeSessions = await Http.GetFromJsonAsync<List<ActiveBrewingDto>>("api/brewing/active");
-            StateHasChanged();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Ошибка загрузки Dashboard: {ex.Message}");
+            Console.WriteLine($"Ошибка загрузки: {ex.Message}");
         }
     }
 
-    private async Task CancelBrewing(Guid sessionId)
-    {
-        var session = activeSessions?.FirstOrDefault(s => s.Id == sessionId);
-        bool confirmed = await JS.InvokeAsync<bool>("confirm",
-            $"ВНИМАНИЕ! Полностью отменить заварку '{session?.TeaName}'? \nГраммы вернутся на склад, а долги спишутся у всех участников.");
+    // МЕТОДЫ УПРАВЛЕНИЯ (теперь со знанием ID участника из Шага 1)
     
-        if (!confirmed) return;
-
-        var response = await Http.DeleteAsync($"api/brewing/{sessionId}");
-        if (response.IsSuccessStatusCode)
-        {
-            await LoadData();
-        }
+    private async Task RemoveFromSession(Guid sessionId, Guid visitId)
+    {
+        var res = await Http.DeleteAsync($"api/brewing/{sessionId}/participants/{visitId}");
+        if (res.IsSuccessStatusCode) await LoadData();
     }
 
     private async Task FinishBrewing(Guid sessionId)
     {
-        var session = activeSessions?.FirstOrDefault(s => s.Id == sessionId);
-        bool confirmed = await JS.InvokeAsync<bool>("confirm",
-    $"ВНИМАНИЕ! Завершить заварку '{session?.TeaName}'?");
-    
-        if (!confirmed) return;
-
-        var response = await Http.PatchAsync($"api/brewing/{sessionId}/finish", null);
-    
-        if (response.IsSuccessStatusCode)
-        {
-            await LoadData(); // Обновляем списки
-        }
+        var res = await Http.PatchAsync($"api/brewing/{sessionId}/finish", null);
+        if (res.IsSuccessStatusCode) await LoadData();
     }
 
-    private async Task RemoveFromSession(Guid sessionId, string participantName)
+    private async Task CancelBrewing(Guid sessionId)
     {
-        // Стандартное окно браузера Да/Нет
-        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Высадить гостя '{participantName}' из этой заварки?");
-        if (!confirmed) return;
-
-        var targetVisit = activeVisits?.FirstOrDefault(v =>
-            (string.IsNullOrEmpty(v.UserName) ? v.Note : v.UserName) == participantName);
-
-        if (targetVisit == null) return;
-
-        var response = await Http.DeleteAsync($"api/brewing/{sessionId}/participants/{targetVisit.Id}");
-        if (response.IsSuccessStatusCode)
-        {
-            await LoadData();
-        }
+        var res = await Http.DeleteAsync($"api/brewing/{sessionId}");
+        if (res.IsSuccessStatusCode) await LoadData();
     }
 
-    public void Dispose() => _timer?.Dispose();
+    // КРИТИЧЕСКИ ВАЖНО: Очистка при закрытии страницы
+    public void Dispose()
+    {
+        _timer?.Dispose();
+        Console.WriteLine("Таймер дашборда остановлен.");
+    }
 }

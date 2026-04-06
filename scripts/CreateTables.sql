@@ -145,6 +145,10 @@ ALTER TABLE Transactions ADD COLUMN StaffId UUID REFERENCES Users(Id);
 
 ALTER TABLE Transactions ADD COLUMN IF NOT EXISTS StaffId UUID REFERENCES Users(Id);
 ALTER TABLE Transactions ADD COLUMN IF NOT EXISTS Description TEXT;
+
+ALTER TABLE BrewingSessions 
+ADD COLUMN IsFinished BOOLEAN NOT NULL DEFAULT FALSE;
+
 -----------------------------------------
 
 
@@ -241,6 +245,30 @@ CREATE TABLE Transactions (
     CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX idx_visits_active ON Visits(IsClosed) WHERE IsClosed = FALSE;
+CREATE INDEX idx_transactions_user ON Transactions(UserId);
+
+
 -- Создаем первого Админа (пароль: admin123)
 INSERT INTO Users (FullName, Login, PasswordHash, Role)
 VALUES ('Главный Мастер', 'admin', '$2a$11$ev7.S.n8J8J0X/3C7v9GueZfI5rA5R8f5Y5F/I5z1mQyP9K7X8k2G', 1);
+
+INSERT INTO Users (Id, FullName, Login, PasswordHash, Role, Balance)
+VALUES (gen_random_uuid(), 'Иван Иванов', 'ivan_tea', NULL, 0, 5000.00);
+
+
+-- 1. Добавляем недостающее поле в сессии заваривания
+ALTER TABLE BrewingSessions 
+ADD COLUMN IsFinished BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- 2. Добавляем поле единицы измерения в таблицу чая (как в модели Tea.cs)
+ALTER TABLE Teas 
+ADD COLUMN Unit TEXT NOT NULL DEFAULT 'g';
+
+-- 3. Создаем индексы для ускорения финансовых отчетов
+CREATE INDEX idx_transactions_createdat ON Transactions(CreatedAt);
+CREATE INDEX idx_sales_createdat ON Sales(CreatedAt);
+
+-- 4. Индекс для быстрого поиска активных сессий (используется в GetActiveSessions)
+CREATE INDEX idx_brewing_active ON BrewingSessions(IsFinished) WHERE IsFinished = FALSE;
+

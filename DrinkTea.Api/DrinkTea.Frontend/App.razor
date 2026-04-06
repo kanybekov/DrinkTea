@@ -1,8 +1,35 @@
-﻿<Router AppAssembly="@typeof(App).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-    </Found>
-    <NotFound>
-        <h1>Страница не найдена (404)</h1>
-    </NotFound>
-</Router>
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Nav
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            @* Удалили AllowAnonymous отсюда *@
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                
+                <NotAuthorized>
+                    @if (context.User.Identity?.IsAuthenticated != true)
+                    {
+                        <DrinkTea.Frontend.Pages.ForceLoginRedirect />
+                    }
+                    else
+                    {
+                        <div class="container mt-5 text-center">
+                            <div class="alert alert-warning shadow">
+                                <h4 class="fw-bold">Доступ ограничен</h4>
+                                <p>У вас нет прав для просмотра этой страницы.</p>
+                                <button class="btn btn-primary" @onclick='() => Nav.NavigateTo("/my-profile")'>Вернуться в профиль</button>
+                            </div>
+                        </div>
+                    }
+                </NotAuthorized>
+
+            </AuthorizeRouteView>
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <p role="alert" class="p-4">Страница не найдена.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

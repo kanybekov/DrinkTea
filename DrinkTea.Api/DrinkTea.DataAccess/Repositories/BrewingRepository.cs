@@ -84,23 +84,26 @@ public class BrewingRepository(DbConnectionFactory db) : IBrewingRepository
     public async Task<IEnumerable<dynamic>> GetActiveSessionsWithParticipantsAsync()
     {
         using var connection = db.CreateConnection();
-        // Собираем сессию, название чая и список имен участников через разделитель
         const string sql = @"
-    SELECT 
-        s.Id as ""Id"", 
-        t.Name as ""TeaName"", 
-        s.TotalGrams as ""Grams"", 
-        s.TotalCost as ""TotalCost"", 
-        s.CreatedAt as ""CreatedAt"",
-        STRING_AGG(COALESCE(u.FullName, v.Note, 'Гость'), ', ') as ""Participants""
-    FROM BrewingSessions s
-    JOIN Teas t ON s.TeaId = t.Id
-    JOIN BrewingParticipants p ON s.Id = p.SessionId
-    JOIN Visits v ON p.VisitId = v.Id
-    LEFT JOIN Users u ON v.UserId = u.Id
-    WHERE s.IsFinished = FALSE
-    GROUP BY s.Id, t.Name, s.TotalGrams, s.TotalCost, s.CreatedAt
-    ORDER BY s.CreatedAt DESC;";
+        SELECT 
+            s.Id, 
+            t.Name as TeaName, 
+            s.TotalGrams as Grams, 
+            s.TotalCost as TotalCost, 
+            s.CreatedAt as CreatedAt,
+            -- Формируем JSON массив из ID визита и Имени (с учетом анонимов)
+            json_agg(json_build_object(
+                'VisitId', p.VisitId, 
+                'Name', COALESCE(u.FullName, v.Note, 'Гость')
+            )) as ParticipantsJson
+        FROM BrewingSessions s
+        JOIN Teas t ON s.TeaId = t.Id
+        JOIN BrewingParticipants p ON s.Id = p.SessionId
+        JOIN Visits v ON p.VisitId = v.Id
+        LEFT JOIN Users u ON v.UserId = u.Id
+        WHERE s.IsFinished = FALSE
+        GROUP BY s.Id, t.Name, s.TotalGrams, s.TotalCost, s.CreatedAt
+        ORDER BY s.CreatedAt DESC;";
 
         return await connection.QueryAsync(sql);
     }

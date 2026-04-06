@@ -13,11 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 1. Инфраструктура
 builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        // Превращает Enum в строку (и наоборот) при передаче по сети
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-    });
+    .AddJsonOptions(options => {});
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(options =>
@@ -46,15 +42,15 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// 1. В секции builder.Services
-builder.Services.AddCors(options => {
-    options.AddDefaultPolicy(policy => {
-        policy.AllowAnyOrigin() // Разрешаем всем (для теста)
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("DevCors", policy =>
+        {
+            policy.AllowAnyOrigin() // Разрешаем любой домен
+                  .AllowAnyMethod() // Разрешаем GET, POST, PUT, DELETE, PATCH
+                  .AllowAnyHeader(); // Разрешаем любые заголовки (включая Authorization)
+        });
     });
-});
-
 
 builder.Services.AddSingleton<JwtProvider>();
 
@@ -101,7 +97,7 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-app.UseCors();
+app.UseCors("DevCors");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

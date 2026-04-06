@@ -8,7 +8,6 @@ namespace DrinkTea.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Master")] // Только персонал управляет пользователями
 public class UsersController(UserService userService, UserContext userContext) : ControllerBase
 {
     [HttpPost("register")]
@@ -19,6 +18,7 @@ public class UsersController(UserService userService, UserContext userContext) :
     }
 
     [HttpPost("{id:guid}/topup")]
+    [Authorize(Roles = "Master")]
     public async Task<IActionResult> TopUp(Guid id, [FromBody] TopUpRequest req)
     {
         await userService.TopUpBalanceAsync(id, req.Amount, req.Method, userContext.UserId);
@@ -75,6 +75,15 @@ public class UsersController(UserService userService, UserContext userContext) :
             return Forbid();
 
         var profile = await userService.GetUserFullProfileAsync(id);
+        return Ok(profile);
+    }
+
+    [HttpGet("me/full-profile")]
+    [Authorize]
+    public async Task<IActionResult> GetMyFullProfile([FromServices] UserContext userContext)
+    {
+        // UserContext сам достанет ID из JWT
+        var profile = await userService.GetUserFullProfileAsync(userContext.UserId);
         return Ok(profile);
     }
 }
