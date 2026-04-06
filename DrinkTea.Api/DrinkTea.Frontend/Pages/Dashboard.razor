@@ -187,22 +187,43 @@
 
     // МЕТОДЫ УПРАВЛЕНИЯ (теперь со знанием ID участника из Шага 1)
     
-    private async Task RemoveFromSession(Guid sessionId, Guid visitId)
-    {
-        var res = await Http.DeleteAsync($"api/brewing/{sessionId}/participants/{visitId}");
-        if (res.IsSuccessStatusCode) await LoadData();
-    }
-
     private async Task FinishBrewing(Guid sessionId)
     {
-        var res = await Http.PatchAsync($"api/brewing/{sessionId}/finish", null);
-        if (res.IsSuccessStatusCode) await LoadData();
+        // Отправляем PATCH запрос на бэкенд
+        var response = await Http.PatchAsync($"api/brewing/{sessionId}/finish", null);
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadData(); // Мгновенно обновляем списки на экране
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "Ошибка при завершении заварки");
+        }
     }
 
+    // 2. Полная отмена (удаление заварки, возврат чая на склад)
     private async Task CancelBrewing(Guid sessionId)
     {
-        var res = await Http.DeleteAsync($"api/brewing/{sessionId}");
-        if (res.IsSuccessStatusCode) await LoadData();
+        // Добавим подтверждение, чтобы мастер не нажал случайно
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", "Вы уверены? Заварка будет удалена, а чай вернется на склад.");
+        if (!confirmed) return;
+
+        var response = await Http.DeleteAsync($"api/brewing/{sessionId}");
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadData();
+        }
+    }
+
+    // 3. Удаление одного человека из чайника (крестик на бейдже)
+    private async Task RemoveFromSession(Guid sessionId, Guid visitId)
+    {
+        // Используем DELETE запрос к нашему API участников
+        var response = await Http.DeleteAsync($"api/brewing/{sessionId}/participants/{visitId}");
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadData();
+        }
     }
 
     // КРИТИЧЕСКИ ВАЖНО: Очистка при закрытии страницы

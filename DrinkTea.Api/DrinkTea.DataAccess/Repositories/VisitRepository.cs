@@ -1,6 +1,7 @@
 ﻿using Dapper;
 using DrinkTea.DataAccess.Interfaces;
 using DrinkTea.Domain.Entities;
+using DrinkTea.Shared.Models.Responses;
 using System.Data;
 
 namespace DrinkTea.DataAccess.Repositories;
@@ -202,55 +203,53 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
 
         return await connection.QueryAsync(sql, new { From = from, To = to });
     }
-
-    public async Task<dynamic?> GetCustomerStatsAsync(Guid userId)
+    
+    public async Task<CustomerFullProfileResponse?> GetCustomerStatsAsync(Guid userId)
     {
         using var connection = db.CreateConnection();
 
+        // Пишем всё строчными буквами, как в твоей БД. 
+        // Если в БД колонки id, fullname, то пишем их так.
         const string sql = @"
-		SELECT 
-			u.Id, 
-			u.FullName as Name, 
-			u.Balance,
-			(SELECT COUNT(*) FROM Visits WHERE UserId = u.Id AND IsClosed = TRUE) as VisitsCount,
-			(
-				SELECT t.Name 
-				FROM BrewingParticipants p
-				JOIN BrewingSessions s ON p.SessionId = s.Id
-				JOIN Teas t ON s.TeaId = t.Id
-				WHERE p.VisitId IN (SELECT Id FROM Visits WHERE UserId = u.Id)
-				GROUP BY t.Name
-				ORDER BY COUNT(*) DESC
-				LIMIT 1
-			) as FavoriteTea
-		FROM Users u
-		WHERE u.Id = @UserId;";
+    SELECT 
+        u.id as Id, 
+        u.fullname as Name, 
+        u.balance as Balance,
+        (SELECT COUNT(*)::int FROM visits WHERE userid = u.id AND isclosed = TRUE) as VisitsCount,
+        (
+            SELECT t.name 
+            FROM brewingparticipants p
+            JOIN brewingsessions s ON p.sessionid = s.id
+            JOIN teas t ON s.teaid = t.id
+            JOIN visits v ON p.visitid = v.id
+            WHERE v.userid = u.id
+            GROUP BY t.name
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+        ) as FavoriteTea
+    FROM users u
+    WHERE u.id = @UserId;";
 
-        return await connection.QueryFirstOrDefaultAsync(sql, new { UserId = userId });
+        return await connection.QueryFirstOrDefaultAsync<CustomerFullProfileResponse>(sql, new { UserId = userId });
     }
 
-    public async Task<IEnumerable<dynamic>> GetUserVisitHistoryAsync(Guid userId, int limit = 10)
+    public async Task<List<LastBrewingDto>> GetUserVisitHistoryAsync(Guid userId, int limit = 5)
     {
         using var connection = db.CreateConnection();
-
         const string sql = @"
         SELECT 
-            v.Id,
-            v.StartTime as Date,
-            v.TotalAmount as Cost,
-            v.Note,
-            -- Собираем названия всех чаев за этот визит в одну строку
-            (SELECT STRING_AGG(DISTINCT t.Name, ', ') 
-             FROM BrewingParticipants p
-             JOIN BrewingSessions s ON p.SessionId = s.Id
-             JOIN Teas t ON s.TeaId = t.Id
-             WHERE p.VisitId = v.Id) as Teas
-        FROM Visits v
-        WHERE v.UserId = @UserId AND v.IsClosed = TRUE
-        ORDER BY v.StartTime DESC
+            t.name as TeaName, 
+            s.createdat as Date, 
+            p.sharecost as Amount
+        FROM brewingparticipants p
+        JOIN brewingsessions s ON p.sessionid = s.id
+        JOIN teas t ON s.teaid = t.id
+        JOIN visits v ON p.visitid = v.id
+        WHERE v.userid = @UserId AND v.isclosed = TRUE
+        ORDER BY s.createdat DESC
         LIMIT @Limit;";
 
-        return await connection.QueryAsync(sql, new { UserId = userId, Limit = limit });
+        var result = await connection.QueryAsync<LastBrewingDto>(sql, new { UserId = userId, Limit = limit });
+        return result.ToList();
     }
-
 }

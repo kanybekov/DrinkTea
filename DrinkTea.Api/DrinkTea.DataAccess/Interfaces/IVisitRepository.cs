@@ -1,4 +1,5 @@
 ﻿using DrinkTea.Domain.Entities;
+using DrinkTea.Shared.Models.Responses;
 using System.Data;
 
 namespace DrinkTea.DataAccess.Interfaces;
@@ -87,7 +88,7 @@ public interface IVisitRepository
     /// </summary>
     Task<IEnumerable<dynamic>> GetDetailedTransactionsAsync(DateTime from, DateTime to);
 
-    Task<dynamic?> GetCustomerStatsAsync(Guid userId);
+    Task<CustomerFullProfileResponse?> GetCustomerStatsAsync(Guid userId);
 
-    Task<IEnumerable<dynamic>> GetUserVisitHistoryAsync(Guid userId, int limit = 10);
+    Task<List<LastBrewingDto>> GetUserVisitHistoryAsync(Guid userId, int limit = 5);
 }

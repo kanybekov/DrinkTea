@@ -1,7 +1,9 @@
-﻿using DrinkTea.DataAccess;
+﻿using Dapper;
+using DrinkTea.DataAccess;
 using DrinkTea.DataAccess.Interfaces;
-using DrinkTea.Shared.Enums;
 using DrinkTea.Domain.Entities;
+using DrinkTea.Shared.Enums;
+using DrinkTea.Shared.Models.Responses;
 
 namespace DrinkTea.BL.Services;
 
@@ -67,11 +69,24 @@ public class UserService(IUserRepository userRepo, IVisitRepository visitRepo, D
         return await visitRepo.GetCustomerStatsAsync(userId) ?? throw new Exception("Статистика не найдена");
     }
 
-    public async Task<dynamic> GetUserFullProfileAsync(Guid userId)
+    public async Task<CustomerFullProfileResponse> GetUserFullProfileAsync(Guid userId)
     {
-        var stats = await visitRepo.GetCustomerStatsAsync(userId);
-        var history = await visitRepo.GetUserVisitHistoryAsync(userId);
+        var profile = await visitRepo.GetCustomerStatsAsync(userId)
+                      ?? throw new Exception("Пользователь не найден");
 
-        return new { Summary = stats, RecentVisits = history };
+        profile.RecentBrews = await visitRepo.GetUserVisitHistoryAsync(userId);
+
+        return profile;
     }
+
+
+    public async Task<IEnumerable<User>> GetAllUsersAsync()
+    {
+        // Можно добавить фильтр, чтобы мастер не видел других мастеров в списке гостей
+        // return await userRepo.GetAllAsync(); 
+        // Но пока давай просто всех:
+        using var connection = db.CreateConnection();
+        return await connection.QueryAsync<User>("SELECT * FROM Users ORDER BY FullName");
+    }
+
 }

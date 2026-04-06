@@ -1,6 +1,7 @@
 ﻿using DrinkTea.BL.Services;
 using DrinkTea.Shared.Enums;
 using DrinkTea.Shared.Models.Requests;
+using DrinkTea.Shared.Models.Responses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -69,7 +70,7 @@ public class UsersController(UserService userService, UserContext userContext) :
 
     [HttpGet("{id:guid}/full-profile")]
     [Authorize]
-    public async Task<IActionResult> GetFullProfile(Guid id)
+    public async Task<ActionResult<CustomerFullProfileResponse>> GetFullProfile(Guid id)
     {
         if (userContext.Role != UserRoles.Master && userContext.UserId != id)
             return Forbid();
@@ -85,6 +86,22 @@ public class UsersController(UserService userService, UserContext userContext) :
         // UserContext сам достанет ID из JWT
         var profile = await userService.GetUserFullProfileAsync(userContext.UserId);
         return Ok(profile);
+    }
+
+    [HttpGet]
+    [Authorize(Roles = "Master")]
+    public async Task<IActionResult> GetAll()
+    {
+        // Нам нужен метод в UserService, который вернет всех (или только клиентов)
+        var users = await userService.GetAllUsersAsync();
+
+        // Возвращаем список DTO
+        return Ok(users.Select(u => new
+        {
+            u.Id,
+            u.FullName,
+            u.Balance
+        }));
     }
 }
 
