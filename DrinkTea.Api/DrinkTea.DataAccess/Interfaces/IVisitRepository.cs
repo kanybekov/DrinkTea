@@ -91,4 +91,6 @@ public interface IVisitRepository
     Task<CustomerFullProfileResponse?> GetCustomerStatsAsync(Guid userId);
 
     Task<List<LastBrewingDto>> GetUserVisitHistoryAsync(Guid userId, int limit = 5);
+
+    Task<List<LastSaleDto>> GetUserSalesHistoryAsync(Guid userId, int limit = 5);
 }

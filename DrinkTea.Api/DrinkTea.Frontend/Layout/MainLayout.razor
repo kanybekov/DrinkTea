@@ -27,6 +27,17 @@
                                         <i class="bi bi-box-seam"></i> Склад
                                     </button>
                                 </li>
+                                <li class="nav-item">
+                                    <button class="btn btn-dark d-flex align-items-center gap-2" @onclick='() => Nav.NavigateTo("/shop")'>
+                                        <i class="bi bi-cart4"></i> Магазин
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="btn btn-dark d-flex align-items-center gap-2" @onclick='() => Nav.NavigateTo("/reports")'>
+                                        <i class="bi bi-graph-up-arrow"></i> Отчеты
+                                    </button>
+                                </li>
+
                                 @* Сюда можно добавить "Отчеты" или "Магазин" *@
                             </AuthorizeView>
                         </ul>
@@ -71,7 +82,12 @@
     .navbar .btn:hover { background: rgba(255,255,255,0.1); color: #198754; }
     main { min-height: 80vh; }
     
-    /* Зеленая рамка из твоего ТЗ, если она еще нужна, оставь, 
-       но обычно в продакшене её убирают */
-    /* .page { border: 5px solid #198754; min-height: 100vh; } */
+</style>
+
+        <style>
+    /* Прямая поддержка сетки, если Bootstrap не подгрузился */
+    .container-fluid { padding: 20px; }
+    .navbar { background-color: #212529; color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+    .btn-success { background-color: #198754; color: white; border: none; padding: 8px 16px; border-radius: 4px; }
+    .card { border: 1px solid #dee2e6; border-radius: 12px; background: white; margin-bottom: 20px; }
 </style>

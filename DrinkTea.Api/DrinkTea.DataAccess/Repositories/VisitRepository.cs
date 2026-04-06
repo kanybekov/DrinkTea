@@ -160,50 +160,41 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
     public async Task<IEnumerable<dynamic>> GetPaymentsSummaryAsync(DateTime from, DateTime to)
     {
         using var connection = db.CreateConnection();
-
+        // Берём данные только из таблицы transactions, где фиксируются все фактические деньги
         const string sql = @"
-		SELECT 
-			PaymentMethod as Method, 
-			SUM(Amount) as Total,
-			COUNT(*) as Count
-		FROM Transactions
-		WHERE CreatedAt BETWEEN @From AND @To
-		GROUP BY PaymentMethod;";
+        SELECT 
+            paymentmethod as method, 
+            SUM(amount) as total,
+            COUNT(*) as count
+        FROM transactions
+        WHERE createdat BETWEEN @From AND @To
+        GROUP BY paymentmethod;";
 
         return await connection.QueryAsync(sql, new { From = from, To = to });
     }
+
 
     public async Task<IEnumerable<dynamic>> GetDetailedTransactionsAsync(DateTime from, DateTime to)
     {
         using var connection = db.CreateConnection();
-
         const string sql = @"
-		SELECT 
-            t.Id, 
-            t.CreatedAt as Time, 
-            -- КТО: Приоритет FullName, если NULL (аноним) — берем Note из визита
-            COALESCE(u.FullName, v.Note, 'Розничный клиент') as Customer, 
-    
-            t.Amount, 
-            t.PaymentMethod as Method, 
-    
-            -- ЧТО: Используем системный Description из таблицы Transactions, 
-            -- который вы заполняете в BL (например, ""Оплата визита"", ""Пополнение"")
-            t.Description as Operation,
-    
-            -- ДОП: Кто из мастеров провел операцию
-            staff.FullName as MasterName
-        FROM Transactions t
-        LEFT JOIN Users u ON t.UserId = u.Id
-        LEFT JOIN Visits v ON t.VisitId = v.Id
-        LEFT JOIN Users staff ON t.StaffId = staff.Id
-        WHERE t.CreatedAt BETWEEN @From AND @To
-        ORDER BY t.CreatedAt DESC;
-";
+        SELECT 
+            t.id as id, 
+            t.createdat as time, 
+            COALESCE(u.fullname, v.note, 'Розничный клиент') as username, 
+            t.amount as amount, 
+            t.paymentmethod as method, 
+            t.description as description,
+            t.visitid as visitid
+        FROM transactions t
+        LEFT JOIN users u ON t.userid = u.id
+        LEFT JOIN visits v ON t.visitid = v.id
+        WHERE t.createdat BETWEEN @From AND @To
+        ORDER BY t.createdat DESC;";
 
         return await connection.QueryAsync(sql, new { From = from, To = to });
     }
-    
+
     public async Task<CustomerFullProfileResponse?> GetCustomerStatsAsync(Guid userId)
     {
         using var connection = db.CreateConnection();
@@ -252,4 +243,24 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
         var result = await connection.QueryAsync<LastBrewingDto>(sql, new { UserId = userId, Limit = limit });
         return result.ToList();
     }
+
+    public async Task<List<LastSaleDto>> GetUserSalesHistoryAsync(Guid userId, int limit = 5)
+    {
+        using var connection = db.CreateConnection();
+        const string sql = @"
+        SELECT 
+            t.name as TeaName, 
+            s.createdat as Date, 
+            s.grams as Grams, 
+            s.totalprice as TotalPrice
+        FROM sales s
+        JOIN teas t ON s.teaid = t.id
+        WHERE s.userid = @UserId
+        ORDER BY s.createdat DESC
+        LIMIT @Limit;";
+
+        var result = await connection.QueryAsync<LastSaleDto>(sql, new { UserId = userId, Limit = limit });
+        return result.ToList();
+    }
+
 }

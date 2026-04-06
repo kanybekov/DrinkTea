@@ -15,6 +15,7 @@ builder.Services.AddScoped(sp =>
     var options = new System.Text.Json.JsonSerializerOptions
     {
         PropertyNameCaseInsensitive = true, // Чтобы не падать на разнице Role vs role
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase // Обычно API шлет в camelCase
     };
     // Добавляем поддержку строк для Enum
     options.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());

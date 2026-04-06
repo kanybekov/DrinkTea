@@ -1,4 +1,5 @@
-﻿using DrinkTea.DataAccess;
+﻿using Dapper;
+using DrinkTea.DataAccess;
 using DrinkTea.DataAccess.Interfaces;
 using DrinkTea.Domain.Entities;
 
@@ -85,6 +86,24 @@ public class TeaService(ITeaRepository teaRepo, DbConnectionFactory db)
             transaction.Rollback();
             throw;
         }
+    }
+    public async Task UpdateTeaPricesAsync(Guid teaId, decimal brewPrice, decimal salePrice)
+    {
+        using var connection = db.CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            // 2. Фиксируем изменение в истории цен (PriceSnapshots)
+            const string sqlHistory = @"
+            INSERT INTO teaprices (id, teaid, brewpricepergram, salepricepergram, createdat)
+            VALUES (gen_random_uuid(), @TeaId, @BrewPrice, @SalePrice, CURRENT_TIMESTAMP)";
+            await transaction.Connection.ExecuteAsync(sqlHistory, new { TeaId = teaId, BrewPrice = brewPrice, SalePrice = salePrice }, transaction);
+
+            transaction.Commit();
+        }
+        catch { transaction.Rollback(); throw; }
     }
 
 

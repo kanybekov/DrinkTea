@@ -13,6 +13,7 @@ namespace DrinkTea.Shared.Models.Responses
 
         // Список последних 5 заварок
         public List<LastBrewingDto> RecentBrews { get; set; } = new();
+        public List<LastSaleDto> RecentSales { get; set; } = new();
 
         public CustomerFullProfileResponse() { }
     }
@@ -24,5 +25,13 @@ namespace DrinkTea.Shared.Models.Responses
         public decimal Amount { get; set; }
 
         public LastBrewingDto() { }
+    }
+
+    public class LastSaleDto
+    {
+        public string TeaName { get; set; } = "";
+        public DateTime Date { get; set; }
+        public decimal Grams { get; set; }
+        public decimal TotalPrice { get; set; }
     }
 }

@@ -75,6 +75,7 @@ public class UserService(IUserRepository userRepo, IVisitRepository visitRepo, D
                       ?? throw new Exception("Пользователь не найден");
 
         profile.RecentBrews = await visitRepo.GetUserVisitHistoryAsync(userId);
+        profile.RecentSales = await visitRepo.GetUserSalesHistoryAsync(userId);
 
         return profile;
     }
@@ -82,11 +83,21 @@ public class UserService(IUserRepository userRepo, IVisitRepository visitRepo, D
 
     public async Task<IEnumerable<User>> GetAllUsersAsync()
     {
-        // Можно добавить фильтр, чтобы мастер не видел других мастеров в списке гостей
-        // return await userRepo.GetAllAsync(); 
-        // Но пока давай просто всех:
         using var connection = db.CreateConnection();
-        return await connection.QueryAsync<User>("SELECT * FROM Users ORDER BY FullName");
+
+        // Используем строчные названия таблицы и колонок + алиасы для маппинга в C#
+        const string sql = @"
+        SELECT 
+            id as Id, 
+            fullname as FullName, 
+            login as Login, 
+            balance as Balance, 
+            role as Role 
+        FROM users 
+        ORDER BY fullname ASC";
+
+        return await connection.QueryAsync<User>(sql);
     }
+
 
 }

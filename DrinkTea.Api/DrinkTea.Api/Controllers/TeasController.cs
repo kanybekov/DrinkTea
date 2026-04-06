@@ -1,6 +1,7 @@
 ﻿using DrinkTea.BL.Services;
 using DrinkTea.Shared.Models.Requests;
 using DrinkTea.Shared.Models.Responses;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DrinkTea.Api.Controllers;
@@ -41,5 +42,14 @@ public class TeasController(TeaService teaService) : ControllerBase
     {
         await teaService.RestockAsync(id, req.Amount, req.NewBrewPrice, req.NewSalePrice);
         return Ok(new { Message = "Склад обновлен" });
+    }
+
+    [HttpPatch("{id:guid}/prices")]
+    [Authorize(Roles = "Master")]
+    public async Task<IActionResult> UpdatePrices(Guid id, [FromBody] UpdateTeaPricesRequest req)
+    {
+        // Вызываем метод сервиса (его нужно будет добавить в TeaService)
+        await teaService.UpdateTeaPricesAsync(id, req.BrewPrice, req.SalePrice);
+        return Ok(new { Message = "Цены обновлены" });
     }
 }
