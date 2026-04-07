@@ -1,5 +1,5 @@
 # Этап сборки (используем SDK)
-FROM mcr.microsoft.com AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Копируем все файлы проектов для восстановления зависимостей
@@ -16,7 +16,7 @@ COPY . .
 RUN dotnet publish "DrinkTea.Api/DrinkTea.Api.csproj" -c Release -o /app/publish
 
 # Финальный этап (используем Runtime — он легче)
-FROM mcr.microsoft.com
+FROM mcr.microsoft.com/dotnet/sdk:8.0
 WORKDIR /app
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "DrinkTea.Api.dll"]
