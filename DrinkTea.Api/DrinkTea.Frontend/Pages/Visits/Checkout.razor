@@ -4,8 +4,10 @@
 @using DrinkTea.Shared.Models.Requests
 @using DrinkTea.Shared.Models.Responses
 @using DrinkTea.Shared.Enums
+@using DrinkTea.Frontend.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
-@inject HttpClient Http
+@inject IVisitsApiService VisitsApi
+@inject IBrewingApiService BrewingApi
 @inject NavigationManager Nav
 
 <div class="container mt-4" style="max-width: 500px;">
@@ -85,9 +87,9 @@
         try
         {
             // Загружаем данные из API
-            var allActive = await Http.GetFromJsonAsync<List<ActiveVisitDto>>("api/visits/active");
+            var allActive = await VisitsApi.GetActiveAsync();
             visit = allActive?.FirstOrDefault(v => v.Id == visitId);
-            items = await Http.GetFromJsonAsync<List<VisitItemResponse>>($"api/brewing/by-visit/{visitId}");
+            items = await BrewingApi.GetByVisitAsync(visitId);
         }
         catch { error = "Не удалось загрузить данные чека."; }
     }
@@ -104,7 +106,7 @@
             ExternalAmount = selectedMethod != PaymentMethod.Internal ? (visit?.UnpaidDebt ?? 0) : 0
         };
 
-        var response = await Http.PostAsJsonAsync($"api/visits/{visitId}/checkout", request);
+        var response = await VisitsApi.CheckoutAsync(visitId, request);
 
         if (response.IsSuccessStatusCode) Nav.NavigateTo("/");
         else error = "Ошибка оплаты. Проверьте баланс гостя.";

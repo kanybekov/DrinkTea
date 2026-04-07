@@ -1,4 +1,4 @@
-﻿using DrinkTea.BL.Services;
+﻿using DrinkTea.BL.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DrinkTea.Shared.Enums;
@@ -7,7 +7,7 @@ using DrinkTea.Shared.Models.Requests;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize(Roles = "Master")] // Только персонал может продавать
-public class SaleController(SaleService saleService, UserContext userContext) : ControllerBase
+public class SalesController(ISaleService saleService, UserContext userContext) : ControllerBase
 {
     [HttpPost]
     public async Task<IActionResult> MakeSale([FromBody] SaleRequest req)

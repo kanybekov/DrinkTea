@@ -1,9 +1,10 @@
 ﻿@page "/inventory"
 @using DrinkTea.Shared.Models.Responses
 @using DrinkTea.Shared.Models.Requests
+@using DrinkTea.Frontend.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = "Master")]
-@inject HttpClient Http
+@inject ITeaApiService TeaApi
 
 <div class="container mt-4">
     <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
@@ -224,7 +225,7 @@
 
     private async Task LoadTeas()
     {
-        try { teas = await Http.GetFromJsonAsync<List<TeaInventoryResponse>>("api/teas/inventory"); }
+        try { teas = await TeaApi.GetInventoryAsync(); }
         catch { /* Лог ошибки */ }
     }
 
@@ -245,7 +246,7 @@
     private async Task HandleCreate()
     {
         loading = true;
-        var res = await Http.PostAsJsonAsync("api/teas", createReq);
+        var res = await TeaApi.CreateAsync(createReq);
         if (res.IsSuccessStatusCode)
         {
             await LoadTeas();
@@ -258,7 +259,7 @@
     {
         if (selectedTea == null) return;
         loading = true;
-        var res = await Http.PostAsJsonAsync($"api/teas/{selectedTea.Id}/restock", restockReq);
+        var res = await TeaApi.RestockAsync(selectedTea.Id, restockReq);
         if (res.IsSuccessStatusCode)
         {
             await LoadTeas();
@@ -276,7 +277,7 @@
 
     private async Task SavePrices(Guid id)
     {
-        var res = await Http.PatchAsJsonAsync($"api/teas/{id}/prices", new { BrewPrice = editBrewPrice, SalePrice = editSalePrice });
+        var res = await TeaApi.UpdatePricesAsync(id, editBrewPrice, editSalePrice);
         if (res.IsSuccessStatusCode)
         {
             editingTeaId = null;

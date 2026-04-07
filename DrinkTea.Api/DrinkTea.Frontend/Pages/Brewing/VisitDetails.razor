@@ -1,8 +1,9 @@
 ﻿@page "/visit/{visitId:guid}"
 @using DrinkTea.Shared.Models.Responses
+@using DrinkTea.Frontend.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = "Master")]
-@inject HttpClient Http
+@inject IBrewingApiService BrewingApi
 @inject NavigationManager Nav
 
 <div class="container mt-4" style="max-width: 600px;">
@@ -63,7 +64,7 @@
         try
         {
             // Используем эндпоинт, который мы ранее обсуждали в BrewingController
-            items = await Http.GetFromJsonAsync<List<VisitItemResponse>>($"api/brewing/by-visit/{visitId}");
+            items = await BrewingApi.GetByVisitAsync(visitId);
         }
         catch (Exception ex)
         {

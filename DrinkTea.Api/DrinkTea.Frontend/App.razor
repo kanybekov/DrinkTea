@@ -10,7 +10,7 @@
                 <NotAuthorized>
                     @if (context.User.Identity?.IsAuthenticated != true)
                     {
-                        <DrinkTea.Frontend.Pages.ForceLoginRedirect />
+                        <DrinkTea.Frontend.Pages.System.ForceLoginRedirect />
                     }
                     else
                     {

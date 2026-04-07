@@ -1,8 +1,9 @@
 ﻿@page "/my-profile"
 @using DrinkTea.Shared.Models.Responses
+@using DrinkTea.Frontend.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
-@inject HttpClient Http
+@inject IUsersApiService UsersApi
 
 <div class="container mt-4" style="max-width: 600px;">
     @if (profile == null)
@@ -87,7 +88,7 @@
     {
         try
         {
-            profile = await Http.GetFromJsonAsync<CustomerFullProfileResponse>("api/users/me/full-profile");
+            profile = await UsersApi.GetMyFullProfileAsync();
         }
         catch (Exception ex)
         {

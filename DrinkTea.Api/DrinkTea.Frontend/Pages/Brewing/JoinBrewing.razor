@@ -1,9 +1,11 @@
 ﻿@page "/brewing/join/{sessionId:guid}"
 @using DrinkTea.Shared.Models.Requests
 @using DrinkTea.Shared.Models.Responses
+@using DrinkTea.Frontend.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = "Master")]
-@inject HttpClient Http
+@inject IVisitsApiService VisitsApi
+@inject IBrewingApiService BrewingApi
 @inject NavigationManager Nav
 
 <div class="container mt-4" style="max-width: 500px;">
@@ -132,8 +134,8 @@
     {
         try
         {
-            activeVisits = await Http.GetFromJsonAsync<List<ActiveVisitDto>>("api/visits/active");
-            var allSessions = await Http.GetFromJsonAsync<List<ActiveBrewingDto>>("api/brewing/active");
+            activeVisits = await VisitsApi.GetActiveAsync();
+            var allSessions = await BrewingApi.GetActiveAsync();
             sessionInfo = allSessions?.FirstOrDefault(s => s.Id == sessionId);
             
             if (sessionInfo == null) Nav.NavigateTo("/");
@@ -156,7 +158,7 @@
         isProcessing = true;
         error = null;
 
-        var response = await Http.PatchAsJsonAsync($"api/brewing/{sessionId}/join", new JoinSessionDto { VisitId = selectedVisit.Id });
+        var response = await BrewingApi.JoinAsync(sessionId, new JoinSessionDto { VisitId = selectedVisit.Id });
 
         if (response.IsSuccessStatusCode)
         {

@@ -1,6 +1,8 @@
 using DrinkTea.Client;
 using DrinkTea.Client.Infrastructure;
 using DrinkTea.Frontend;
+using DrinkTea.Frontend.Services.Api;
+using DrinkTea.Frontend.Services.Interfaces;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
@@ -44,5 +46,13 @@ builder.Services.AddScoped(sp =>
     var factory = sp.GetRequiredService<IHttpClientFactory>();
     return factory.CreateClient("DrinkTeaAPI");
 });
+
+builder.Services.AddScoped<IAuthApiService, AuthApiService>();
+builder.Services.AddScoped<IUsersApiService, UsersApiService>();
+builder.Services.AddScoped<IVisitsApiService, VisitsApiService>();
+builder.Services.AddScoped<IBrewingApiService, BrewingApiService>();
+builder.Services.AddScoped<ITeaApiService, TeaApiService>();
+builder.Services.AddScoped<ISalesApiService, SalesApiService>();
+builder.Services.AddScoped<IReportsApiService, ReportsApiService>();
 
 await builder.Build().RunAsync();

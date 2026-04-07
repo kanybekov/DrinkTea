@@ -1,4 +1,4 @@
-﻿using Dapper;
+﻿using DrinkTea.BL.Interfaces;
 using DrinkTea.DataAccess;
 using DrinkTea.DataAccess.Interfaces;
 using DrinkTea.Domain.Entities;
@@ -8,7 +8,7 @@ namespace DrinkTea.BL.Services;
 /// <summary>
 /// 	Сервис для управления справочником чая и складскими остатками.
 /// </summary>
-public class TeaService(ITeaRepository teaRepo, DbConnectionFactory db)
+public class TeaService(ITeaRepository teaRepo, IUnitOfWork unitOfWork) : ITeaService
 {
     /// <summary>
     /// 	Получает актуальное состояние склада для всех позиций.
@@ -23,28 +23,27 @@ public class TeaService(ITeaRepository teaRepo, DbConnectionFactory db)
 	/// </summary>
 	public async Task<Guid> CreateTeaWithPriceAsync(string name, decimal stock, decimal brewPrice, decimal salePrice)
     {
-        using var connection = db.CreateConnection();
-        connection.Open();
-        using var transaction = connection.BeginTransaction();
+        using var transaction = await unitOfWork.BeginTransactionAsync();
 
         try
         {
             var teaId = Guid.NewGuid();
-            await teaRepo.CreateAsync(new Tea { Id = teaId, Name = name, CurrentStock = stock }, transaction);
+            await teaRepo.CreateAsync(new Tea { Id = teaId, Name = name, CurrentStock = stock }, transaction.DbTransaction);
 
             await teaRepo.AddPriceAsync(new TeaPrice
             {
                 TeaId = teaId,
                 BrewPricePerGram = brewPrice,
                 SalePricePerGram = salePrice
-            }, transaction);
+            }, transaction.DbTransaction);
 
-            transaction.Commit();
+            await transaction.CommitAsync();
             return teaId;
         }
         catch
         {
-            transaction.Rollback(); throw;
+            await transaction.RollbackAsync();
+            throw;
         }
     }
 
@@ -56,54 +55,51 @@ public class TeaService(ITeaRepository teaRepo, DbConnectionFactory db)
     /// </remarks>
     public async Task RestockAsync(Guid teaId, decimal amount, decimal? newBrewPrice, decimal? newSalePrice)
     {
-        using var connection = db.CreateConnection();
-        connection.Open();
-        using var transaction = connection.BeginTransaction();
+        using var transaction = await unitOfWork.BeginTransactionAsync();
 
         try
         {
             // 1. Увеличиваем склад (метод репозитория принимает транзакцию)
-            await teaRepo.UpdateStockAsync(teaId, amount, transaction);
+            await teaRepo.UpdateStockAsync(teaId, amount, transaction.DbTransaction);
 
             // 2. Логика обновления цены: создаем запись в TeaPrices, только если передана хотя бы одна цена
             if (newBrewPrice.HasValue || newSalePrice.HasValue)
             {
                 // Получаем текущие актуальные цены, чтобы подставить их, если изменена только одна из двух
-                var currentPrice = await teaRepo.GetLatestPriceAsync(teaId);
+                var currentPrice = await teaRepo.GetLatestPriceAsync(teaId, transaction.DbTransaction);
 
                 await teaRepo.AddPriceAsync(new TeaPrice
                 {
                     TeaId = teaId,
                     BrewPricePerGram = newBrewPrice ?? currentPrice?.BrewPricePerGram ?? 0,
                     SalePricePerGram = newSalePrice ?? currentPrice?.SalePricePerGram ?? 0
-                }, transaction);
+                }, transaction.DbTransaction);
             }
 
-            transaction.Commit();
+            await transaction.CommitAsync();
         }
         catch
         {
-            transaction.Rollback();
+            await transaction.RollbackAsync();
             throw;
         }
     }
+
     public async Task UpdateTeaPricesAsync(Guid teaId, decimal brewPrice, decimal salePrice)
     {
-        using var connection = db.CreateConnection();
-        connection.Open();
-        using var transaction = connection.BeginTransaction();
+        using var transaction = await unitOfWork.BeginTransactionAsync();
 
         try
         {
-            // 2. Фиксируем изменение в истории цен (PriceSnapshots)
-            const string sqlHistory = @"
-            INSERT INTO teaprices (id, teaid, brewpricepergram, salepricepergram, createdat)
-            VALUES (gen_random_uuid(), @TeaId, @BrewPrice, @SalePrice, CURRENT_TIMESTAMP)";
-            await transaction.Connection.ExecuteAsync(sqlHistory, new { TeaId = teaId, BrewPrice = brewPrice, SalePrice = salePrice }, transaction);
+            await teaRepo.AddPriceSnapshotAsync(teaId, brewPrice, salePrice, transaction.DbTransaction);
 
-            transaction.Commit();
+            await transaction.CommitAsync();
         }
-        catch { transaction.Rollback(); throw; }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
 

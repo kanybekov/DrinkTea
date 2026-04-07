@@ -4,8 +4,11 @@
 
 @using DrinkTea.Shared.Models.Requests
 @using DrinkTea.Shared.Models.Responses
+@using DrinkTea.Frontend.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
-@inject HttpClient Http
+@inject ITeaApiService TeaApi
+@inject IVisitsApiService VisitsApi
+@inject IBrewingApiService BrewingApi
 @inject NavigationManager Nav
 
 <div class="container mt-4" style="max-width: 700px;">
@@ -84,8 +87,8 @@
     {
         try
         {
-            teas = await Http.GetFromJsonAsync<List<TeaInventoryResponse>>("api/teas/inventory");
-            activeVisits = await Http.GetFromJsonAsync<List<ActiveVisitDto>>("api/visits/active");
+            teas = await TeaApi.GetInventoryAsync();
+            activeVisits = await VisitsApi.GetActiveAsync();
             
             // Инициализируем список ID участников
             dto.VisitIds = new List<Guid>();
@@ -125,7 +128,7 @@
             return;
         }
 
-        var response = await Http.PostAsJsonAsync("api/brewing/start", dto);
+        var response = await BrewingApi.StartAsync(dto);
         if (response.IsSuccessStatusCode) Nav.NavigateTo("/");
         else error = "Ошибка. Возможно, на складе не хватает чая.";
     }

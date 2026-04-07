@@ -3,8 +3,10 @@
 
 @using DrinkTea.Shared.Models.Requests
 @using DrinkTea.Shared.Models.Responses
+@using DrinkTea.Frontend.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
-@inject HttpClient Http
+@inject IUsersApiService UsersApi
+@inject IVisitsApiService VisitsApi
 @inject NavigationManager Nav
 
 <div class="container mt-4" style="max-width: 500px;">
@@ -120,7 +122,7 @@
     {
         try
         {
-            users = await Http.GetFromJsonAsync<List<UserListItemDto>>("api/users");
+            users = await UsersApi.GetAllAsync();
         }
         catch (Exception ex)
         {
@@ -154,7 +156,7 @@
         loading = true;
         error = null;
 
-        var response = await Http.PostAsJsonAsync("api/visits/checkin", request);
+        var response = await VisitsApi.CheckInAsync(request);
         
         if (response.IsSuccessStatusCode)
         {

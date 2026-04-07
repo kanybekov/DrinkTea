@@ -1,4 +1,4 @@
-﻿using Dapper;
+﻿using DrinkTea.BL.Interfaces;
 using DrinkTea.DataAccess;
 using DrinkTea.DataAccess.Interfaces;
 using DrinkTea.Domain.Entities;
@@ -7,7 +7,7 @@ using DrinkTea.Shared.Models.Responses;
 
 namespace DrinkTea.BL.Services;
 
-public class UserService(IUserRepository userRepo, IVisitRepository visitRepo, DbConnectionFactory db)
+public class UserService(IUserRepository userRepo, IVisitRepository visitRepo, IUnitOfWork unitOfWork) : IUserService
 {
     public async Task<Guid> CreateUserAsync(string fullName, string login, string password, UserRoles role)
     {
@@ -30,14 +30,12 @@ public class UserService(IUserRepository userRepo, IVisitRepository visitRepo, D
     /// </summary>
     public async Task TopUpBalanceAsync(Guid userId, decimal amount, PaymentMethod method, Guid staffId)
     {
-        using var connection = db.CreateConnection();
-        connection.Open();
-        using var transaction = connection.BeginTransaction();
+        using var transaction = await unitOfWork.BeginTransactionAsync();
 
         try
         {
             // 1. Увеличиваем баланс в таблице Users (теперь передаем транзакцию)
-            var success = await visitRepo.UpdateUserBalanceAsync(userId, amount, transaction);
+            var success = await visitRepo.UpdateUserBalanceAsync(userId, amount, transaction.DbTransaction);
             if (!success) throw new Exception("Пользователь не найден или ошибка обновления.");
 
             // 2. Фиксируем пополнение в транзакциях
@@ -48,13 +46,13 @@ public class UserService(IUserRepository userRepo, IVisitRepository visitRepo, D
                 Amount = amount,
                 PaymentMethod = method,
                 Description = $"Пополнение баланса ({method})"
-            }, transaction);
+            }, transaction.DbTransaction);
 
-            transaction.Commit();
+            await transaction.CommitAsync();
         }
         catch
         {
-            transaction.Rollback();
+            await transaction.RollbackAsync();
             throw;
         }
     }
@@ -83,20 +81,7 @@ public class UserService(IUserRepository userRepo, IVisitRepository visitRepo, D
 
     public async Task<IEnumerable<User>> GetAllUsersAsync()
     {
-        using var connection = db.CreateConnection();
-
-        // Используем строчные названия таблицы и колонок + алиасы для маппинга в C#
-        const string sql = @"
-        SELECT 
-            id as Id, 
-            fullname as FullName, 
-            login as Login, 
-            balance as Balance, 
-            role as Role 
-        FROM users 
-        ORDER BY fullname ASC";
-
-        return await connection.QueryAsync<User>(sql);
+        return await userRepo.GetAllAsync();
     }
 
 

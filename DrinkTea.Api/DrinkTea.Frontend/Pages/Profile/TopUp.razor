@@ -2,9 +2,10 @@
 @using DrinkTea.Shared.Models.Requests
 @using DrinkTea.Shared.Models.Responses
 @using DrinkTea.Shared.Enums
+@using DrinkTea.Frontend.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = "Master")]
-@inject HttpClient Http
+@inject IUsersApiService UsersApi
 @inject NavigationManager Nav
 
 <div class="container mt-4" style="max-width: 500px;">
@@ -74,7 +75,7 @@
         try
         {
             // Загружаем данные пользователя через существующий API
-            var allUsers = await Http.GetFromJsonAsync<List<UserListItemDto>>("api/users");
+            var allUsers = await UsersApi.GetAllAsync();
             user = allUsers?.FirstOrDefault(u => u.Id == userId);
         }
         catch { error = "Не удалось загрузить данные пользователя."; }
@@ -85,7 +86,7 @@
         loading = true;
         error = null;
 
-        var response = await Http.PostAsJsonAsync($"api/users/{userId}/topup", request);
+        var response = await UsersApi.TopUpAsync(userId, request);
 
         if (response.IsSuccessStatusCode)
         {

@@ -3,9 +3,11 @@
 @attribute [Authorize(Roles = "Master")]
 
 @using DrinkTea.Shared.Models.Responses
+@using DrinkTea.Frontend.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
 @implements IDisposable
-@inject HttpClient Http
+@inject IVisitsApiService VisitsApi
+@inject IBrewingApiService BrewingApi
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
@@ -166,14 +168,14 @@
 @code {
     private List<ActiveVisitDto>? activeVisits;
     private List<ActiveBrewingDto>? activeSessions;
-    private System.Threading.Timer? _timer;
+    private global::System.Threading.Timer? _timer;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
         
         // Запускаем авто-обновление каждые 10 секунд
-        _timer = new System.Threading.Timer(async _ =>
+        _timer = new global::System.Threading.Timer(async _ =>
         {
             await InvokeAsync(async () =>
             {
@@ -187,8 +189,8 @@
     {
         try
         {
-            activeVisits = await Http.GetFromJsonAsync<List<ActiveVisitDto>>("api/visits/active");
-            activeSessions = await Http.GetFromJsonAsync<List<ActiveBrewingDto>>("api/brewing/active");
+            activeVisits = await VisitsApi.GetActiveAsync();
+            activeSessions = await BrewingApi.GetActiveAsync();
         }
         catch (Exception ex)
         {
@@ -201,7 +203,7 @@
     private async Task FinishBrewing(Guid sessionId)
     {
         // Отправляем PATCH запрос на бэкенд
-        var response = await Http.PatchAsync($"api/brewing/{sessionId}/finish", null);
+        var response = await BrewingApi.FinishAsync(sessionId);
         if (response.IsSuccessStatusCode)
         {
             await LoadData(); // Мгновенно обновляем списки на экране
@@ -219,7 +221,7 @@
         bool confirmed = await JS.InvokeAsync<bool>("confirm", "Вы уверены? Заварка будет удалена, а чай вернется на склад.");
         if (!confirmed) return;
 
-        var response = await Http.DeleteAsync($"api/brewing/{sessionId}");
+        var response = await BrewingApi.CancelAsync(sessionId);
         if (response.IsSuccessStatusCode)
         {
             await LoadData();
@@ -230,7 +232,7 @@
     private async Task RemoveFromSession(Guid sessionId, Guid visitId)
     {
         // Используем DELETE запрос к нашему API участников
-        var response = await Http.DeleteAsync($"api/brewing/{sessionId}/participants/{visitId}");
+        var response = await BrewingApi.RemoveParticipantAsync(sessionId, visitId);
         if (response.IsSuccessStatusCode)
         {
             await LoadData();

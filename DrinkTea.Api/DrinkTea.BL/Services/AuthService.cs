@@ -1,4 +1,5 @@
 ﻿using BCrypt.Net;
+using DrinkTea.BL.Interfaces;
 using DrinkTea.DataAccess.Interfaces;
 using DrinkTea.Domain.Entities;
 
@@ -7,7 +8,7 @@ namespace DrinkTea.BL.Services;
 /// <summary>
 /// 	Сервис проверки подлинности пользователей.
 /// </summary>
-public class AuthService(IUserRepository userRepo)
+public class AuthService(IUserRepository userRepo) : IAuthService
 {
     /// <summary>
     /// 	Проверяет пару Логин/Пароль.
@@ -17,12 +18,6 @@ public class AuthService(IUserRepository userRepo)
     {
         var user = await userRepo.GetByLoginAsync(login)
             ?? throw new Exception("Пользователь не найден");
-
-        // ЛОГИРОВАНИЕ ДЛЯ ОТЛАДКИ
-        Console.WriteLine($"--- AUTH DEBUG ---");
-        Console.WriteLine($"Login: [{user.Login}]");
-        Console.WriteLine($"Input Password: [{password}] (Length: {password?.Length})");
-        Console.WriteLine($"Hash from DB: [{user.PasswordHash}] (Length: {user.PasswordHash?.Length})");
 
         if (string.IsNullOrEmpty(user.PasswordHash))
             throw new Exception("Ошибка маппинга: Пароль в объекте User пустой!");

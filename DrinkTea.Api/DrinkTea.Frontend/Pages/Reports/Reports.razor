@@ -1,9 +1,10 @@
 ﻿@page "/reports"
 @using DrinkTea.Shared.Models.Responses
 @using DrinkTea.Shared.Enums
+@using DrinkTea.Frontend.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = "Master")]
-@inject HttpClient Http
+@inject IReportsApiService ReportsApi
 
 <div class="container mt-4" style="max-width: 900px;">
     <div class="card shadow border-0 rounded-4 overflow-hidden mb-4">
@@ -86,13 +87,8 @@
     {
         report = null;
         details = null;
-        var dateStr = reportDate.ToString("yyyy-MM-dd");
-        
-        // 1. Запрос итогов
-        report = await Http.GetFromJsonAsync<CashReportResponse>($"api/visits/report?date={dateStr}");
-        
-        // 2. Запрос деталей
-        details = await Http.GetFromJsonAsync<List<TransactionDetailResponse>>($"api/visits/report/details?date={dateStr}");
+        report = await ReportsApi.GetDailyReportAsync(reportDate);
+        details = await ReportsApi.GetDetailedReportAsync(reportDate);
     }
 
     private string GetMethodName(PaymentMethod method) => method switch

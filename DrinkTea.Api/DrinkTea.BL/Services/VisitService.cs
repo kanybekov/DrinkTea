@@ -1,12 +1,12 @@
-﻿using DrinkTea.DataAccess;
+﻿using DrinkTea.BL.Interfaces;
+using DrinkTea.DataAccess;
 using DrinkTea.DataAccess.Interfaces;
 using DrinkTea.Shared.Enums;
 using DrinkTea.Domain.Entities;
-using System.Data;
 
 namespace DrinkTea.BL.Services;
 
-public class VisitService(DbConnectionFactory db, IVisitRepository visitRepo)
+public class VisitService(IUnitOfWork unitOfWork, IVisitRepository visitRepo) : IVisitService
 {
     public async Task<Visit> StartVisitAsync(Guid? userId, string? note)
     {
@@ -33,9 +33,7 @@ public class VisitService(DbConnectionFactory db, IVisitRepository visitRepo)
     /// </summary>
     public async Task CheckoutAsync(Guid visitId, decimal internalAmount, decimal externalAmount, PaymentMethod method, Guid staffId)
     {
-        using var connection = db.CreateConnection();
-        connection.Open();
-        using var transaction = connection.BeginTransaction();
+        using var transaction = await unitOfWork.BeginTransactionAsync();
 
         try
         {
@@ -53,7 +51,7 @@ public class VisitService(DbConnectionFactory db, IVisitRepository visitRepo)
             {
                 if (!visit.UserId.HasValue) throw new Exception("Аноним не может платить с депозита.");
 
-                var success = await visitRepo.UpdateUserBalanceAsync(visit.UserId.Value, -internalAmount, transaction);
+                var success = await visitRepo.UpdateUserBalanceAsync(visit.UserId.Value, -internalAmount, transaction.DbTransaction);
                 if (!success) throw new Exception("Ошибка списания с баланса.");
 
                 await visitRepo.RegisterTransactionAsync(new Transaction
@@ -64,7 +62,7 @@ public class VisitService(DbConnectionFactory db, IVisitRepository visitRepo)
                     Amount = internalAmount,
                     PaymentMethod = PaymentMethod.Internal,
                     Description = "Оплата визита (Депозит)"
-                }, transaction);
+                }, transaction.DbTransaction);
             }
 
             // 2. Внешняя оплата (Cash/Card)
@@ -78,33 +76,31 @@ public class VisitService(DbConnectionFactory db, IVisitRepository visitRepo)
                     PaymentMethod = method,
                     StaffId = staffId,
                     Description = $"Оплата визита ({method})"
-                }, transaction);
+                }, transaction.DbTransaction);
             }
 
             // 3. Закрытие визита (сумма зафиксирована, EndTime проставлен)
-            await visitRepo.CloseAsync(visitId, transaction);
+            await visitRepo.CloseAsync(visitId, transaction.DbTransaction);
 
-            transaction.Commit();
+            await transaction.CommitAsync();
         }
         catch
         {
-            transaction.Rollback();
+            await transaction.RollbackAsync();
             throw;
         }
     }
 
     public async Task PayForFriendAsync(Guid payerUserId, Guid targetVisitId, Guid staffId)
     {
-        using var connection = db.CreateConnection();
-        connection.Open();
-        using var transaction = connection.BeginTransaction();
+        using var transaction = await unitOfWork.BeginTransactionAsync();
         try
         {
             var visit = await visitRepo.GetByIdAsync(targetVisitId) ?? throw new Exception("Визит не найден.");
             if (visit.IsClosed) throw new Exception("Визит уже оплачен.");
 
             // Списываем строго сумму долга
-            var success = await visitRepo.UpdateUserBalanceAsync(payerUserId, -visit.TotalAmount, transaction);
+            var success = await visitRepo.UpdateUserBalanceAsync(payerUserId, -visit.TotalAmount, transaction.DbTransaction);
             if (!success) throw new Exception("Недостаточно средств на балансе плательщика.");
 
             await visitRepo.RegisterTransactionAsync(new Transaction
@@ -115,12 +111,16 @@ public class VisitService(DbConnectionFactory db, IVisitRepository visitRepo)
                 Amount = visit.TotalAmount,
                 PaymentMethod = PaymentMethod.Internal,
                 Description = $"Оплата за друга (Визит: {visit.Note ?? "ID " + targetVisitId})"
-            }, transaction);
+            }, transaction.DbTransaction);
 
-            await visitRepo.CloseAsync(targetVisitId, transaction);
-            transaction.Commit();
+            await visitRepo.CloseAsync(targetVisitId, transaction.DbTransaction);
+            await transaction.CommitAsync();
         }
-        catch { transaction.Rollback(); throw; }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<IEnumerable<dynamic>> GetActiveDashboardAsync() => await visitRepo.GetActiveVisitsWithNamesAsync();
