@@ -1,5 +1,5 @@
 # 1. Используем SDK для сборки (Microsoft Container Registry)
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Копируем проект и восстанавливаем зависимости
@@ -11,7 +11,7 @@ COPY . .
 RUN dotnet publish "DrinkTea.Migrator/DrinkTea.Migrator.csproj" -c Release -o /app/publish
 
 # 2. Используем Runtime для запуска (он намного меньше по размеру)
-FROM mcr.microsoft.com/dotnet/sdk:8.0
+FROM mcr.microsoft.com/dotnet/sdk:10.0
 WORKDIR /app
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "DrinkTea.Migrator.dll"]
