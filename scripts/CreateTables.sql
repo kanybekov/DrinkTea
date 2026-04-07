@@ -254,7 +254,14 @@ INSERT INTO Users (FullName, Login, PasswordHash, Role)
 VALUES ('Главный Мастер', 'admin', '$2a$11$ev7.S.n8J8J0X/3C7v9GueZfI5rA5R8f5Y5F/I5z1mQyP9K7X8k2G', 1);
 
 INSERT INTO Users (Id, FullName, Login, PasswordHash, Role, Balance)
-VALUES (gen_random_uuid(), 'Иван Иванов', 'ivan_tea', NULL, 0, 5000.00);
+VALUES (
+    gen_random_uuid(), 
+    'Иван Теаман', 
+    'ivan_tea', 
+    '$2a$11$ev7.S.n8J8J0X/3C7v9GueZfI5rA5R8f5Y5F/I5z1mQyP9K7X8k2G', -- Пароль 123456
+    0, -- Role: Customer
+    0.00
+);
 
 
 -- 1. Добавляем недостающее поле в сессии заваривания
