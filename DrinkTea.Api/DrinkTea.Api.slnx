@@ -4,5 +4,6 @@
   <Project Path="DrinkTea.BL/DrinkTea.BL.csproj" Id="6fead40c-a418-410c-900e-b00fde14acea" />
   <Project Path="DrinkTea.DataAccess/DrinkTea.DataAccess.csproj" Id="94a3baec-8aae-4769-9da1-a86521dc42b7" />
   <Project Path="DrinkTea.Frontend/DrinkTea.Frontend.csproj" Id="fa9c3e44-fe4d-4b15-a2c7-f32a1bc26489" />
+  <Project Path="DrinkTea.Migrator/DrinkTea.Migrator.csproj" Id="285c2cef-2355-4a24-b014-01c4a9be9e3d" />
   <Project Path="DrinkTea.Shared/DrinkTea.Shared.csproj" Id="df454104-d209-4215-8098-6fcba078afc9" />
 </Solution>
