@@ -1,4 +1,4 @@
-FROM ://microsoft.com AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY . .
 # Добавляем флаг отключения хешей прямо в команду сборки
