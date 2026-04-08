@@ -2,6 +2,7 @@
 using DrinkTea.DataAccess;
 using DrinkTea.DataAccess.Interfaces;
 using DrinkTea.Domain.Entities;
+using DrinkTea.Shared.Models.Responses;
 
 namespace DrinkTea.BL.Services;
 
@@ -102,5 +103,90 @@ public class TeaService(ITeaRepository teaRepo, IUnitOfWork unitOfWork) : ITeaSe
         }
     }
 
+    public async Task SaveFeedbackAsync(Guid teaId, Guid userId, int rating, string? comment, string? privateNote)
+    {
+        using var transaction = await unitOfWork.BeginTransactionAsync();
+
+        try
+        {
+            await teaRepo.UpsertPublicReviewAsync(teaId, userId, rating, comment?.Trim() ?? string.Empty, transaction.DbTransaction);
+
+            if (privateNote is not null)
+            {
+                if (string.IsNullOrWhiteSpace(privateNote))
+                {
+                    await teaRepo.DeletePrivateNoteAsync(teaId, userId, transaction.DbTransaction);
+                }
+                else
+                {
+                    await teaRepo.UpsertPrivateNoteAsync(teaId, userId, privateNote.Trim(), transaction.DbTransaction);
+                }
+            }
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task<bool> DeleteMyReviewAsync(Guid teaId, Guid userId)
+    {
+        using var transaction = await unitOfWork.BeginTransactionAsync();
+        try
+        {
+            var deleted = await teaRepo.DeletePublicReviewByOwnerAsync(teaId, userId, transaction.DbTransaction);
+            await transaction.CommitAsync();
+            return deleted;
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task<bool> DeleteReviewByIdAsync(Guid teaId, Guid reviewId)
+    {
+        using var transaction = await unitOfWork.BeginTransactionAsync();
+        try
+        {
+            var deleted = await teaRepo.DeletePublicReviewByIdAsync(teaId, reviewId, transaction.DbTransaction);
+            await transaction.CommitAsync();
+            return deleted;
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task<Tea?> GetTeaWithFeedbackAsync(Guid teaId, Guid? currentUserId)
+    {
+        return await teaRepo.GetTeaWithFeedbackAsync(teaId, currentUserId);
+    }
+
+    public async Task<IEnumerable<Tea>> GetTeasForRatingsAsync(Guid? currentUserId)
+    {
+        return await teaRepo.GetTeasForRatingsAsync(currentUserId);
+    }
+
+    public async Task<IEnumerable<MyTeaRatingItemResponse>> GetMyTeaRatingsAsync(Guid userId)
+    {
+        var raw = await teaRepo.GetMyTeaRatingsAsync(userId);
+        return raw.Select(x => new MyTeaRatingItemResponse
+        {
+            TeaId = (Guid)x.teaid,
+            TeaName = (string)x.teaname,
+            MyRating = x.myrating == null ? null : (int?)x.myrating,
+            MyComment = x.mycomment == null ? null : (string)x.mycomment,
+            MyPrivateNote = x.myprivatenote == null ? null : (string)x.myprivatenote,
+            LastRatedAt = x.lastratedat == null ? null : (DateTime?)x.lastratedat,
+            LastNotedAt = x.lastnotedat == null ? null : (DateTime?)x.lastnotedat
+        });
+    }
 
 }

@@ -279,3 +279,28 @@ CREATE INDEX idx_sales_createdat ON Sales(CreatedAt);
 -- 4. Индекс для быстрого поиска активных сессий (используется в GetActiveSessions)
 CREATE INDEX idx_brewing_active ON BrewingSessions(IsFinished) WHERE IsFinished = FALSE;
 
+-- 9. Публичные отзывы по чаю
+CREATE TABLE IF NOT EXISTS TeaPublicReviews (
+    Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    TeaId UUID NOT NULL REFERENCES Teas(Id) ON DELETE CASCADE,
+    UserId UUID NOT NULL REFERENCES Users(Id) ON DELETE CASCADE,
+    Rating INTEGER NOT NULL CHECK (Rating BETWEEN 1 AND 5),
+    Comment TEXT NOT NULL DEFAULT '',
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_tea_public_reviews_teaid_createdat
+    ON TeaPublicReviews(TeaId, CreatedAt DESC);
+
+-- 10. Приватные заметки пользователя о чае
+CREATE TABLE IF NOT EXISTS TeaPrivateNotes (
+    Id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    TeaId UUID NOT NULL REFERENCES Teas(Id) ON DELETE CASCADE,
+    UserId UUID NOT NULL REFERENCES Users(Id) ON DELETE CASCADE,
+    NoteText TEXT NOT NULL,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_tea_private_notes_user_tea_createdat
+    ON TeaPrivateNotes(UserId, TeaId, CreatedAt DESC);
+

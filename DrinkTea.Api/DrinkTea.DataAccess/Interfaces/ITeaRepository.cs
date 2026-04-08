@@ -49,4 +49,13 @@ public interface ITeaRepository
     /// Adds a price snapshot entry without exposing SQL to services.
     /// </summary>
     Task AddPriceSnapshotAsync(Guid teaId, decimal brewPrice, decimal salePrice, IDbTransaction transaction);
+
+    Task UpsertPublicReviewAsync(Guid teaId, Guid userId, int rating, string comment, IDbTransaction transaction);
+    Task UpsertPrivateNoteAsync(Guid teaId, Guid userId, string noteText, IDbTransaction transaction);
+    Task DeletePrivateNoteAsync(Guid teaId, Guid userId, IDbTransaction transaction);
+    Task<bool> DeletePublicReviewByOwnerAsync(Guid teaId, Guid userId, IDbTransaction transaction);
+    Task<bool> DeletePublicReviewByIdAsync(Guid teaId, Guid reviewId, IDbTransaction transaction);
+    Task<Tea?> GetTeaWithFeedbackAsync(Guid teaId, Guid? currentUserId);
+    Task<IEnumerable<Tea>> GetTeasForRatingsAsync(Guid? currentUserId);
+    Task<IEnumerable<dynamic>> GetMyTeaRatingsAsync(Guid userId);
 }

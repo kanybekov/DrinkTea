@@ -52,4 +52,125 @@ public class TeasController(ITeaService teaService) : ControllerBase
         await teaService.UpdateTeaPricesAsync(id, req.BrewPrice, req.SalePrice);
         return Ok(new { Message = "Цены обновлены" });
     }
+
+    [HttpGet("{id:guid}/feedback")]
+    [Authorize]
+    public async Task<IActionResult> GetFeedback(Guid id, [FromServices] UserContext userContext)
+    {
+        var tea = await teaService.GetTeaWithFeedbackAsync(id, userContext.UserId);
+        if (tea == null)
+        {
+            return NotFound();
+        }
+
+        var ratingsCount = tea.PublicReviews.Count;
+        var averageRating = ratingsCount == 0 ? 0 : Math.Round(tea.PublicReviews.Average(x => (decimal)x.Rating), 2);
+
+        var response = new TeaFeedbackResponse
+        {
+            TeaId = tea.Id,
+            TeaName = tea.Name,
+            AverageRating = averageRating,
+            RatingsCount = ratingsCount,
+            PublicReviews = tea.PublicReviews.Select(x => new PublicReviewDto
+            {
+                Id = x.Id,
+                Rating = x.Rating,
+                Comment = x.Comment,
+                UserId = x.UserId,
+                UserName = x.UserName,
+                CreatedAt = x.CreatedAt
+            }).ToList(),
+            PrivateNotes = tea.PrivateNotes.Select(x => new PrivateNoteDto
+            {
+                NoteText = x.NoteText,
+                UserId = x.UserId,
+                CreatedAt = x.CreatedAt
+            }).ToList()
+        };
+
+        return Ok(response);
+    }
+
+    [HttpPost("{id:guid}/feedback")]
+    [Authorize]
+    public async Task<IActionResult> SaveFeedback(Guid id, [FromBody] SaveTeaFeedbackRequest req, [FromServices] UserContext userContext)
+    {
+        if (req.Rating is < 1 or > 5)
+        {
+            return BadRequest(new { Message = "Оценка должна быть от 1 до 5." });
+        }
+
+        await teaService.SaveFeedbackAsync(id, userContext.UserId, req.Rating, req.Comment, req.PrivateNote);
+        return Ok(new { Message = "Отзыв сохранен" });
+    }
+
+    [HttpDelete("{id:guid}/feedback")]
+    [Authorize]
+    public async Task<IActionResult> DeleteMyFeedback(Guid id, [FromServices] UserContext userContext)
+    {
+        var deleted = await teaService.DeleteMyReviewAsync(id, userContext.UserId);
+        return deleted ? Ok(new { Message = "Отзыв удален" }) : NotFound();
+    }
+
+    [HttpDelete("{id:guid}/reviews/{reviewId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> DeleteReview(Guid id, Guid reviewId, [FromServices] UserContext userContext)
+    {
+        if (userContext.Role != DrinkTea.Shared.Enums.UserRoles.Master)
+        {
+            return Forbid();
+        }
+
+        var deleted = await teaService.DeleteReviewByIdAsync(id, reviewId);
+        return deleted ? Ok(new { Message = "Отзыв удален администратором" }) : NotFound();
+    }
+
+    [HttpGet("ratings")]
+    [Authorize]
+    public async Task<IActionResult> GetRatings([FromServices] UserContext userContext)
+    {
+        var teas = await teaService.GetTeasForRatingsAsync(userContext.UserId);
+        var result = teas
+            .Select(x =>
+            {
+                var ratingsCount = x.PublicReviews.Count;
+                var avg = ratingsCount == 0 ? 0 : Math.Round(x.PublicReviews.Average(r => (decimal)r.Rating), 2);
+
+                return new TeaRatingListItemResponse
+                {
+                    TeaId = x.Id,
+                    TeaName = x.Name,
+                    AverageRating = avg,
+                    RatingsCount = ratingsCount,
+                    RecentPublicComments = x.PublicReviews
+                        .Where(r => r.UserId != userContext.UserId)
+                        .OrderByDescending(r => r.CreatedAt)
+                        .Take(3)
+                        .Select(r => new PublicReviewDto
+                        {
+                            Rating = r.Rating,
+                            Comment = r.Comment,
+                            UserId = r.UserId,
+                            UserName = r.UserName,
+                            CreatedAt = r.CreatedAt
+                        })
+                        .ToList()
+                };
+            })
+            .OrderByDescending(x => x.AverageRating)
+            .ThenByDescending(x => x.RatingsCount)
+            .ThenBy(x => x.TeaName)
+            .ToList();
+
+        return Ok(result);
+    }
+
+    [HttpGet("my-ratings")]
+    [Authorize]
+    public async Task<IActionResult> GetMyRatings([FromServices] UserContext userContext)
+    {
+        var result = await teaService.GetMyTeaRatingsAsync(userContext.UserId);
+        return Ok(result);
+    }
 }

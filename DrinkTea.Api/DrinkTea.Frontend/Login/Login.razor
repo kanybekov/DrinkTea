@@ -9,6 +9,7 @@
 @inject IAuthApiService AuthApi
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh;">
     <div class="card shadow p-4" style="width: 100%; max-width: 400px; border-radius: 15px;">
@@ -72,6 +73,10 @@
                 {
                     await JS.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
                     await JS.InvokeVoidAsync("localStorage.setItem", "userName", result.FullName);
+                    if (AuthStateProvider is DrinkTea.Client.Infrastructure.ApiAuthenticationStateProvider apiAuthStateProvider)
+                    {
+                        apiAuthStateProvider.NotifyUserAuthentication(result.Token);
+                    }
 
                     // ТЕПЕРЬ ОШИБКИ НЕ БУДЕТ:
                     if (result.Role == DrinkTea.Shared.Enums.UserRoles.Master)

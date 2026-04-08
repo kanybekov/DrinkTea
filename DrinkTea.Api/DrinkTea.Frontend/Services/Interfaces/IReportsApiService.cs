@@ -16,4 +16,7 @@ public interface IReportsApiService
     /// Gets detailed daily report.
     /// </summary>
     Task<List<TransactionDetailResponse>?> GetDetailedReportAsync(DateTime date);
+
+    Task<CashReportResponse?> GetMonthlyReportAsync(string month);
+    Task<List<TransactionDetailResponse>?> GetMonthlyDetailedReportAsync(string month);
 }

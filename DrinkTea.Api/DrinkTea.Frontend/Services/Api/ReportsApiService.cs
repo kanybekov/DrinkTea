@@ -16,4 +16,10 @@ public class ReportsApiService(HttpClient httpClient) : IReportsApiService
     /// <inheritdoc />
     public Task<List<TransactionDetailResponse>?> GetDetailedReportAsync(DateTime date)
         => httpClient.GetFromJsonAsync<List<TransactionDetailResponse>>($"api/visits/report/details?date={date:yyyy-MM-dd}");
+
+    public Task<CashReportResponse?> GetMonthlyReportAsync(string month)
+        => httpClient.GetFromJsonAsync<CashReportResponse>($"api/visits/report?month={month}");
+
+    public Task<List<TransactionDetailResponse>?> GetMonthlyDetailedReportAsync(string month)
+        => httpClient.GetFromJsonAsync<List<TransactionDetailResponse>>($"api/visits/report/details?month={month}");
 }

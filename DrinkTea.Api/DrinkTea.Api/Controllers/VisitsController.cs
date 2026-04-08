@@ -72,10 +72,10 @@ public class VisitsController(IVisitService visitService) : ControllerBase
     /// </summary>
     /// <param name="date"> Дата отчета (по умолчанию сегодня). </param>
     [HttpGet("report")]
-    public async Task<IActionResult> GetReport([FromQuery] DateTime? date)
+    public async Task<IActionResult> GetReport([FromQuery] DateTime? date, [FromQuery] string? month)
     {
-        var reportDate = date ?? DateTime.Today;
-        var rawData = await visitService.GetRawDailyReportAsync(reportDate);
+        var (from, to) = BuildReportRange(date, month);
+        var rawData = await visitService.GetRawReportAsync(from, to);
 
         var totals = new Dictionary<PaymentMethod, decimal>();
         decimal grandTotal = 0;
@@ -99,10 +99,10 @@ public class VisitsController(IVisitService visitService) : ControllerBase
     /// 	Получить подробный список всех транзакций за день.
     /// </summary>
     [HttpGet("report/details")]
-    public async Task<IActionResult> GetDetailedReport([FromQuery] DateTime? date)
+    public async Task<IActionResult> GetDetailedReport([FromQuery] DateTime? date, [FromQuery] string? month)
     {
-        var reportDate = date ?? DateTime.Today;
-        var rawData = await visitService.GetRawDetailedReportAsync(reportDate);
+        var (from, to) = BuildReportRange(date, month);
+        var rawData = await visitService.GetRawDetailedReportAsync(from, to);
 
         var result = rawData.Select(x => new TransactionDetailResponse(
             (Guid)x.id,
@@ -115,6 +115,20 @@ public class VisitsController(IVisitService visitService) : ControllerBase
         ));
 
         return Ok(result);
+    }
+
+    private static (DateTime from, DateTime to) BuildReportRange(DateTime? date, string? month)
+    {
+        if (!string.IsNullOrWhiteSpace(month) &&
+            DateTime.TryParseExact($"{month}-01", "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out var monthDate))
+        {
+            var fromMonth = new DateTime(monthDate.Year, monthDate.Month, 1);
+            var toMonth = fromMonth.AddMonths(1).AddTicks(-1);
+            return (fromMonth, toMonth);
+        }
+
+        var day = (date ?? DateTime.Today).Date;
+        return (day, day.AddDays(1).AddTicks(-1));
     }
 
     /// <summary>

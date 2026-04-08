@@ -1,0 +1,160 @@
+@page "/"
+@using DrinkTea.Shared.Enums
+@using DrinkTea.Shared.Models.Requests
+@using DrinkTea.Shared.Models.Responses
+@using Microsoft.AspNetCore.Authorization
+@using global::System.ComponentModel.DataAnnotations
+@attribute [AllowAnonymous]
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="card shadow border-0 rounded-4">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-cup-hot text-success" style="font-size: 3rem;"></i>
+                        <h2 class="fw-bold mt-2">DrinkTea</h2>
+                        <p class="text-muted mb-0">Регистрация нового пользователя</p>
+                    </div>
+
+                    <EditForm Model="@registerModel" OnValidSubmit="HandleRegister">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="mb-3">
+                            <label class="form-label">Имя</label>
+                            <InputText class="form-control form-control-lg" @bind-Value="registerModel.FullName" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Логин</label>
+                            <InputText class="form-control form-control-lg" @bind-Value="registerModel.Login" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Пароль</label>
+                            <InputText type="password" class="form-control form-control-lg" @bind-Value="registerModel.Password" />
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label">Подтверждение пароля</label>
+                            <InputText type="password" class="form-control form-control-lg" @bind-Value="registerModel.ConfirmPassword" />
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(error))
+                        {
+                            <div class="alert alert-danger py-2">@error</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(success))
+                        {
+                            <div class="alert alert-success py-2">@success</div>
+                        }
+
+                        <button type="submit" class="btn btn-success btn-lg w-100" disabled="@isProcessing">
+                            @(isProcessing ? "Секунду..." : "Зарегистрироваться")
+                        </button>
+                    </EditForm>
+
+                    <div class="text-center mt-3">
+                        <button class="btn btn-link" @onclick='() => Nav.NavigateTo("/login")'>Уже есть аккаунт</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterFormModel registerModel = new();
+    private bool isProcessing;
+    private string? error;
+    private string? success;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated == true)
+        {
+            var isMaster = state.User.IsInRole(nameof(UserRoles.Master)) || state.User.Claims.Any(x => x.Type == "role" && x.Value == nameof(UserRoles.Master));
+            Nav.NavigateTo(isMaster ? "/dashboard" : "/my-profile");
+        }
+    }
+
+    private async Task HandleRegister()
+    {
+        isProcessing = true;
+        error = null;
+        success = null;
+
+        try
+        {
+            var registerRequest = new RegisterUserRequest
+            {
+                FullName = registerModel.FullName.Trim(),
+                Login = registerModel.Login.Trim(),
+                Password = registerModel.Password,
+                Role = UserRoles.Customer
+            };
+
+            var registerResponse = await Http.PostAsJsonAsync("api/users/register", registerRequest);
+            if (!registerResponse.IsSuccessStatusCode)
+            {
+                error = "Не удалось зарегистрироваться.";
+                return;
+            }
+
+            var loginResponse = await Http.PostAsJsonAsync("api/auth/login", new LoginRequest(registerModel.Login, registerModel.Password));
+            if (!loginResponse.IsSuccessStatusCode)
+            {
+                error = "Регистрация прошла, но авто-вход не выполнен. Выполните вход вручную.";
+                return;
+            }
+
+            var loginPayload = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>();
+            if (loginPayload == null || string.IsNullOrWhiteSpace(loginPayload.Token))
+            {
+                error = "Не удалось получить токен авторизации.";
+                return;
+            }
+
+            await JS.InvokeVoidAsync("localStorage.setItem", "authToken", loginPayload.Token);
+            await JS.InvokeVoidAsync("localStorage.setItem", "userName", loginPayload.FullName);
+
+            if (AuthStateProvider is DrinkTea.Client.Infrastructure.ApiAuthenticationStateProvider apiAuthStateProvider)
+            {
+                apiAuthStateProvider.NotifyUserAuthentication(loginPayload.Token);
+            }
+
+            success = "Регистрация успешна. Переходим в профиль...";
+            Nav.NavigateTo("/my-profile");
+        }
+        catch
+        {
+            error = "Ошибка связи с сервером.";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private class RegisterFormModel
+    {
+        [Required(ErrorMessage = "Введите имя.")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Имя должно быть от 2 до 100 символов.")]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Введите логин.")]
+        [StringLength(50, MinimumLength = 3, ErrorMessage = "Логин должен быть от 3 до 50 символов.")]
+        public string Login { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Введите пароль.")]
+        [StringLength(100, MinimumLength = 6, ErrorMessage = "Пароль должен быть не короче 6 символов.")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Подтвердите пароль.")]
+        [Compare(nameof(Password), ErrorMessage = "Пароли не совпадают.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

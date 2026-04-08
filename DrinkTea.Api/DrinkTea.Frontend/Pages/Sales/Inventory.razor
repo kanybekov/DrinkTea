@@ -4,6 +4,8 @@
 @using DrinkTea.Frontend.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = "Master")]
+@inject HttpClient Http
+@inject NavigationManager Nav
 @inject ITeaApiService TeaApi
 
 <div class="container mt-4">
@@ -92,14 +94,10 @@
                                     <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenRestockModal(tea)">
                                         Приход
                                     </button>
+                                    <button class="btn btn-sm btn-outline-success ms-1" @onclick='() => Nav.NavigateTo($"/teas/{tea.Id}")'>
+                                        Отзывы
+                                    </button>
                                 }
-                            </td>
-
-
-                            <td class="text-end">
-                                <button class="btn btn-outline-primary shadow-sm" @onclick="() => OpenRestockModal(tea)">
-                                    <i class="bi bi-plus-circle me-1"></i> Приход
-                                </button>
                             </td>
                         </tr>
                     }

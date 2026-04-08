@@ -1,0 +1,309 @@
+@page "/teas/{TeaId:guid}"
+@using DrinkTea.Shared.Models.Requests
+@using DrinkTea.Shared.Models.Responses
+@using Microsoft.AspNetCore.Authorization
+@using global::System.Security.Claims
+@attribute [Authorize]
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="container mt-4">
+    @if (isLoading)
+    {
+        <div class="text-center p-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (tea == null)
+    {
+        <div class="alert alert-warning">Чай не найден.</div>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2 class="fw-bold m-0">@tea.TeaName</h2>
+                <div class="text-muted">Средний рейтинг: @tea.AverageRating.ToString("0.00") (@tea.RatingsCount отзывов)</div>
+            </div>
+            <button class="btn btn-outline-secondary" @onclick='() => Nav.NavigateTo("/ratings")'>Все рейтинги</button>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-12 col-lg-5">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-3">Мой отзыв</h5>
+                        <EditForm Model="feedbackRequest" OnValidSubmit="SaveFeedback">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+
+                            <div class="mb-3">
+                                <label class="form-label d-block">Оценка</label>
+                                <div class="d-flex gap-1">
+                                    @for (var i = 1; i <= 5; i++)
+                                    {
+                                        var value = i;
+                                        <button type="button"
+                                                class="btn btn-sm @(feedbackRequest.Rating >= value ? "btn-warning" : "btn-outline-secondary")"
+                                                @onclick="() => SetRating(value)">
+                                            ★
+                                        </button>
+                                    }
+                                </div>
+                                <small class="text-muted">Выбрано: @feedbackRequest.Rating / 5</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Публичный комментарий</label>
+                                <InputTextArea @bind-Value="feedbackRequest.Comment" class="form-control" rows="4" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Приватная заметка (видна только вам)</label>
+                                <InputTextArea @bind-Value="feedbackRequest.PrivateNote" class="form-control" rows="4" />
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(error))
+                            {
+                                <div class="alert alert-danger py-2">@error</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(success))
+                            {
+                                <div class="alert alert-success py-2">@success</div>
+                            }
+
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary" type="submit" disabled="@isSaving">Сохранить изменения</button>
+                                @if (myReviewExists)
+                                {
+                                    <button class="btn btn-outline-danger" type="button" @onclick="DeleteMyReview" disabled="@isSaving">
+                                        Удалить мой отзыв
+                                    </button>
+                                }
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-7">
+                <div class="card shadow-sm border-0 mb-3">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-3">Последние публичные отзывы</h5>
+                        @if (!tea.PublicReviews.Any())
+                        {
+                            <div class="text-muted">Пока нет отзывов.</div>
+                        }
+                        else
+                        {
+                            @foreach (var review in tea.PublicReviews)
+                            {
+                                <div class="border-bottom pb-2 mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>@review.UserName</strong>
+                                        <span>⭐ @review.Rating</span>
+                                    </div>
+                                    <div>@review.Comment</div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">@review.CreatedAt.ToLocalTime()</small>
+                                        @if (CanDeleteReview(review))
+                                        {
+                                            <button class="btn btn-sm btn-link text-danger p-0"
+                                                    @onclick="() => DeleteReview(review)">
+                                                удалить
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-3">Мои приватные заметки</h5>
+                        @if (!tea.PrivateNotes.Any())
+                        {
+                            <div class="text-muted">Вы еще не оставляли приватных заметок по этому чаю.</div>
+                        }
+                        else
+                        {
+                            @foreach (var note in tea.PrivateNotes)
+                            {
+                                <div class="border-bottom pb-2 mb-2">
+                                    <div>@note.NoteText</div>
+                                    <small class="text-muted">@note.CreatedAt.ToLocalTime()</small>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid TeaId { get; set; }
+
+    private TeaFeedbackResponse? tea;
+    private SaveTeaFeedbackRequest feedbackRequest = new() { Rating = 5 };
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? error;
+    private string? success;
+    private Guid currentUserId = Guid.Empty;
+    private bool isMaster;
+    private bool myReviewExists;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ResolveCurrentUser();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadTea();
+    }
+
+    private async Task LoadTea()
+    {
+        isLoading = true;
+        error = null;
+        try
+        {
+            tea = await Http.GetFromJsonAsync<TeaFeedbackResponse>($"api/teas/{TeaId}/feedback");
+            if (tea != null)
+            {
+                var myReview = tea.PublicReviews.FirstOrDefault(x => x.UserId == currentUserId);
+                var myNote = tea.PrivateNotes.FirstOrDefault();
+                myReviewExists = myReview != null;
+                feedbackRequest = new SaveTeaFeedbackRequest
+                {
+                    Rating = myReview?.Rating ?? 5,
+                    Comment = myReview?.Comment,
+                    PrivateNote = myNote?.NoteText
+                };
+            }
+        }
+        catch
+        {
+            error = "Не удалось загрузить данные чая.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveFeedback()
+    {
+        isSaving = true;
+        error = null;
+        success = null;
+        try
+        {
+            var response = await Http.PostAsJsonAsync($"api/teas/{TeaId}/feedback", feedbackRequest);
+            if (!response.IsSuccessStatusCode)
+            {
+                error = "Не удалось сохранить отзыв.";
+                return;
+            }
+
+            success = "Отзыв сохранен.";
+            await LoadTea();
+        }
+        catch
+        {
+            error = "Ошибка связи с сервером.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DeleteMyReview()
+    {
+        isSaving = true;
+        error = null;
+        success = null;
+        try
+        {
+            var response = await Http.DeleteAsync($"api/teas/{TeaId}/feedback");
+            if (!response.IsSuccessStatusCode)
+            {
+                error = "Не удалось удалить отзыв.";
+                return;
+            }
+
+            success = "Ваш отзыв удален.";
+            await LoadTea();
+        }
+        catch
+        {
+            error = "Ошибка связи с сервером.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DeleteReview(PublicReviewDto review)
+    {
+        isSaving = true;
+        error = null;
+        success = null;
+        try
+        {
+            HttpResponseMessage response;
+            if (review.UserId == currentUserId)
+            {
+                response = await Http.DeleteAsync($"api/teas/{TeaId}/feedback");
+            }
+            else
+            {
+                response = await Http.DeleteAsync($"api/teas/{TeaId}/reviews/{review.Id}");
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                error = "Не удалось удалить отзыв.";
+                return;
+            }
+
+            success = "Отзыв удален.";
+            await LoadTea();
+        }
+        catch
+        {
+            error = "Ошибка связи с сервером.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private bool CanDeleteReview(PublicReviewDto review)
+    {
+        return review.UserId == currentUserId || isMaster;
+    }
+
+    private async Task ResolveCurrentUser()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var idValue = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? user.FindFirst("sub")?.Value;
+        if (Guid.TryParse(idValue, out var userId))
+        {
+            currentUserId = userId;
+        }
+
+        isMaster = user.IsInRole("Master") || user.Claims.Any(c => c.Type == "role" && c.Value == "Master");
+    }
+
+    private void SetRating(int value)
+    {
+        feedbackRequest.Rating = value;
+    }
+}

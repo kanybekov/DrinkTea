@@ -20,6 +20,7 @@ namespace DrinkTea.Shared.Models.Responses
 
     public class LastBrewingDto
     {
+        public Guid TeaId { get; set; }
         public string TeaName { get; set; } = string.Empty;
         public DateTime Date { get; set; }
         public decimal Amount { get; set; }
@@ -29,6 +30,7 @@ namespace DrinkTea.Shared.Models.Responses
 
     public class LastSaleDto
     {
+        public Guid TeaId { get; set; }
         public string TeaName { get; set; } = "";
         public DateTime Date { get; set; }
         public decimal Grams { get; set; }

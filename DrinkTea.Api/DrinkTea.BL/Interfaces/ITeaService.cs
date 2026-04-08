@@ -1,3 +1,6 @@
+using DrinkTea.Domain.Entities;
+using DrinkTea.Shared.Models.Responses;
+
 namespace DrinkTea.BL.Interfaces;
 
 /// <summary>
@@ -24,4 +27,14 @@ public interface ITeaService
     /// Updates tea prices.
     /// </summary>
     Task UpdateTeaPricesAsync(Guid teaId, decimal brewPrice, decimal salePrice);
+
+    Task SaveFeedbackAsync(Guid teaId, Guid userId, int rating, string? comment, string? privateNote);
+    Task<bool> DeleteMyReviewAsync(Guid teaId, Guid userId);
+    Task<bool> DeleteReviewByIdAsync(Guid teaId, Guid reviewId);
+
+    Task<Tea?> GetTeaWithFeedbackAsync(Guid teaId, Guid? currentUserId);
+
+    Task<IEnumerable<Tea>> GetTeasForRatingsAsync(Guid? currentUserId);
+
+    Task<IEnumerable<MyTeaRatingItemResponse>> GetMyTeaRatingsAsync(Guid userId);
 }

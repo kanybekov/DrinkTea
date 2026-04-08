@@ -229,6 +229,7 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
         using var connection = db.CreateConnection();
         const string sql = @"
         SELECT 
+            t.id as TeaId,
             t.name as TeaName, 
             s.createdat as Date, 
             p.sharecost as Amount
@@ -249,6 +250,7 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
         using var connection = db.CreateConnection();
         const string sql = @"
         SELECT 
+            t.id as TeaId,
             t.name as TeaName, 
             s.createdat as Date, 
             s.grams as Grams, 

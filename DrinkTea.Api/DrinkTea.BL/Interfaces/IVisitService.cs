@@ -34,7 +34,17 @@ public interface IVisitService
     Task<IEnumerable<dynamic>> GetRawDailyReportAsync(DateTime date);
 
     /// <summary>
+    /// Returns payments report data for custom period.
+    /// </summary>
+    Task<IEnumerable<dynamic>> GetRawReportAsync(DateTime from, DateTime to);
+
+    /// <summary>
     /// Returns daily transaction details.
     /// </summary>
     Task<IEnumerable<dynamic>> GetRawDetailedReportAsync(DateTime date);
+
+    /// <summary>
+    /// Returns detailed transactions for custom period.
+    /// </summary>
+    Task<IEnumerable<dynamic>> GetRawDetailedReportAsync(DateTime from, DateTime to);
 }

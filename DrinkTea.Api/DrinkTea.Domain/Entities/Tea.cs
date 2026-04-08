@@ -24,4 +24,14 @@ public class Tea
     ///     Единица измерения (по умолчанию "g").
     /// </summary>
     public string Unit { get; set; } = "g";
+
+    /// <summary>
+    ///     Публичные отзывы о сорте чая.
+    /// </summary>
+    public List<PublicReview> PublicReviews { get; set; } = new();
+
+    /// <summary>
+    ///     Приватные заметки пользователя о сорте.
+    /// </summary>
+    public List<PrivateNote> PrivateNotes { get; set; } = new();
 }

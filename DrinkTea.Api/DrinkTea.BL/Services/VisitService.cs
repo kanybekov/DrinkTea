@@ -126,8 +126,14 @@ public class VisitService(IUnitOfWork unitOfWork, IVisitRepository visitRepo) : 
     public async Task<IEnumerable<dynamic>> GetActiveDashboardAsync() => await visitRepo.GetActiveVisitsWithNamesAsync();
 
     public async Task<IEnumerable<dynamic>> GetRawDailyReportAsync(DateTime date)
-        => await visitRepo.GetPaymentsSummaryAsync(date.Date, date.Date.AddDays(1).AddTicks(-1));
+        => await GetRawReportAsync(date.Date, date.Date.AddDays(1).AddTicks(-1));
 
     public async Task<IEnumerable<dynamic>> GetRawDetailedReportAsync(DateTime date)
-        => await visitRepo.GetDetailedTransactionsAsync(date.Date, date.Date.AddDays(1).AddTicks(-1));
+        => await GetRawDetailedReportAsync(date.Date, date.Date.AddDays(1).AddTicks(-1));
+
+    public async Task<IEnumerable<dynamic>> GetRawReportAsync(DateTime from, DateTime to)
+        => await visitRepo.GetPaymentsSummaryAsync(from, to);
+
+    public async Task<IEnumerable<dynamic>> GetRawDetailedReportAsync(DateTime from, DateTime to)
+        => await visitRepo.GetDetailedTransactionsAsync(from, to);
 }
