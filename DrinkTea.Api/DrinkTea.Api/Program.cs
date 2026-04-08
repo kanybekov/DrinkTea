@@ -1,4 +1,5 @@
 using DrinkTea.BL.Infrastructure;
+using DrinkTea.BL.Interfaces;
 using DrinkTea.BL.Services;
 using DrinkTea.DataAccess;
 using DrinkTea.DataAccess.Interfaces;
@@ -74,6 +75,7 @@ builder.Services.AddAuthorization();
 // 2. DataAccess Layer
 // Передаем строку подключения из appsettings.json в фабрику
 builder.Services.AddSingleton<DbConnectionFactory>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<ITeaRepository, TeaRepository>();
 builder.Services.AddScoped<IVisitRepository, VisitRepository>();
 builder.Services.AddScoped<IBrewingRepository, BrewingRepository>();
@@ -81,12 +83,12 @@ builder.Services.AddScoped<ISaleRepository, SaleRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 // 3. Business Logic Layer
-builder.Services.AddScoped<BrewingService>();
-builder.Services.AddScoped<VisitService>();
-builder.Services.AddScoped<SaleService>();
-builder.Services.AddScoped<TeaService>();
-builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<IBrewingService, BrewingService>();
+builder.Services.AddScoped<IVisitService, VisitService>();
+builder.Services.AddScoped<ISaleService, SaleService>();
+builder.Services.AddScoped<ITeaService, TeaService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<UserContext>();

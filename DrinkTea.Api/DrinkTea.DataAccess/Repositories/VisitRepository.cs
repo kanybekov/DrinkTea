@@ -252,7 +252,7 @@ public class VisitRepository(DbConnectionFactory db) : IVisitRepository
             t.name as TeaName, 
             s.createdat as Date, 
             s.grams as Grams, 
-            s.totalprice as TotalPrice
+            s.totalcost as TotalPrice
         FROM sales s
         JOIN teas t ON s.teaid = t.id
         WHERE s.userid = @UserId

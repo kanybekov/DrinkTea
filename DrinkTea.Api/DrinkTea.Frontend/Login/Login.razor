@@ -4,8 +4,9 @@
 @using DrinkTea.Shared.Models.Responses
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.JSInterop
+@using DrinkTea.Frontend.Services.Interfaces
 @attribute [AllowAnonymous]
-@inject HttpClient Http
+@inject IAuthApiService AuthApi
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
@@ -62,7 +63,7 @@
 
         try
         {
-            var response = await Http.PostAsJsonAsync("api/auth/login", request);
+            var response = await AuthApi.LoginAsync(request);
 
             if (response.IsSuccessStatusCode)
             {

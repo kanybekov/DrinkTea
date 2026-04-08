@@ -1,4 +1,4 @@
-﻿using DrinkTea.BL.Services;
+﻿using DrinkTea.BL.Interfaces;
 using DrinkTea.Shared.Enums;
 using DrinkTea.Shared.Models.Requests;
 using DrinkTea.Shared.Models.Responses;
@@ -9,7 +9,7 @@ namespace DrinkTea.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class UsersController(UserService userService, UserContext userContext) : ControllerBase
+public class UsersController(IUserService userService, UserContext userContext) : ControllerBase
 {
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterUserRequest req)

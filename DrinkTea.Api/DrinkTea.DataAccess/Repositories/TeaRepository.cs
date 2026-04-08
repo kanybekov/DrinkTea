@@ -81,4 +81,12 @@ public class TeaRepository(DbConnectionFactory db) : ITeaRepository
 		VALUES (@TeaId, @BrewPricePerGram, @SalePricePerGram);";
         await transaction.Connection.ExecuteAsync(sql, price, transaction);
     }
+
+    public async Task AddPriceSnapshotAsync(Guid teaId, decimal brewPrice, decimal salePrice, IDbTransaction transaction)
+    {
+        const string sql = @"
+            INSERT INTO teaprices (id, teaid, brewpricepergram, salepricepergram, createdat)
+            VALUES (gen_random_uuid(), @TeaId, @BrewPrice, @SalePrice, CURRENT_TIMESTAMP);";
+        await transaction.Connection.ExecuteAsync(sql, new { TeaId = teaId, BrewPrice = brewPrice, SalePrice = salePrice }, transaction);
+    }
 }

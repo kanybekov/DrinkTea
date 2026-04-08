@@ -7,23 +7,19 @@
     <title>DrinkTea v1.1</title>
     <base href="/" />
 
-    <!-- Правильные ссылки на CDN (с префиксом cdn.) -->
-    <link href="https://jsdelivr.net" rel="stylesheet">
-    <link rel="stylesheet" href="https://jsdelivr.net">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <!-- Базовый CSS -->
     <link rel="stylesheet" href="css/app.css" />
 
-    <!-- Стили компонентов (ПРОВЕРЬ ИМЯ ПРОЕКТА ТУТ) -->
     <link href="DrinkTea.Frontend.styles.css" rel="stylesheet" />
 </head>
 
 
 
 <body class="bg-light">
-    @* Добавили светло-серый фон для приятного контраста *@
     <div id="app">
-        @* Заглушка загрузки *@
         <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
             <div class="text-center">
                 <div class="spinner-border text-success" style="width: 3rem; height: 3rem;" role="status"></div>
@@ -38,10 +34,8 @@
         <span class="dismiss">🗙</span>
     </div>
 
-    @* Стандартный скрипт Blazor *@
     <script src="_framework/blazor.webassembly.js"></script>
-    @* Bootstrap JS для модалок и выпадающих списков *@
-    <script src="https://jsdelivr.net"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>

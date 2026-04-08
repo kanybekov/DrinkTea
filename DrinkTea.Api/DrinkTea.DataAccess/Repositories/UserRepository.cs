@@ -1,12 +1,10 @@
 ﻿using Dapper;
+using DrinkTea.DataAccess.Interfaces;
 using DrinkTea.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace DrinkTea.DataAccess.Repositories
 {
-    public class UserRepository(DbConnectionFactory db):IUserRepository
+    public class UserRepository(DbConnectionFactory db) : IUserRepository
     {
         public async Task<User?> GetByLoginAsync(string login)
         {
@@ -42,6 +40,21 @@ namespace DrinkTea.DataAccess.Repositories
             VALUES (@Id, @FullName, @Login, @PasswordHash, @Role, @Balance);";
 
             await connection.ExecuteAsync(sql, user);
+        }
+
+        public async Task<IEnumerable<User>> GetAllAsync()
+        {
+            using var connection = db.CreateConnection();
+            const string sql = @"
+                SELECT 
+                    id as Id, 
+                    fullname as FullName, 
+                    login as Login, 
+                    role as Role, 
+                    balance as Balance
+                FROM users
+                ORDER BY fullname ASC;";
+            return await connection.QueryAsync<User>(sql);
         }
 
         public async Task UpdateBalanceAsync(Guid userId, decimal amount)
