@@ -13,7 +13,7 @@ COPY . .
 RUN dotnet publish "DrinkTea.Api/DrinkTea.Api.csproj" -c Release -o /app/publish
 
 # Этап запуска
-FROM ://microsoft.com
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 
 # Устанавливаем библиотеку для Kerberos (нужна для Npgsql)
