@@ -1,4 +1,4 @@
-﻿using DrinkTea.BL.Services;
+﻿using DrinkTea.BL.Interfaces;
 using DrinkTea.Shared.Models.Requests;
 using DrinkTea.Shared.Models.Responses;
 using Microsoft.AspNetCore.Authorization;
@@ -8,7 +8,7 @@ namespace DrinkTea.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class TeasController(TeaService teaService) : ControllerBase
+public class TeasController(ITeaService teaService) : ControllerBase
 {
     /// <summary>
     /// 	Получить полный список чая с остатками и ценами для инвентаризации.

@@ -1,4 +1,4 @@
-﻿using DrinkTea.BL.Services;
+﻿using DrinkTea.BL.Interfaces;
 using DrinkTea.Shared.Enums;
 using DrinkTea.Shared.Models.Requests;
 using DrinkTea.Shared.Models.Responses;
@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("api/[controller]")]
-public class VisitsController(VisitService visitService) : ControllerBase
+public class VisitsController(IVisitService visitService) : ControllerBase
 {
     [HttpPost("checkin")]
     public async Task<IActionResult> CheckIn([FromBody] CheckInRequest req)

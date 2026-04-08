@@ -1,11 +1,11 @@
 ﻿using DrinkTea.BL.Infrastructure;
-using DrinkTea.BL.Services;
+using DrinkTea.BL.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using DrinkTea.Shared.Models.Requests;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController(AuthService authService, JwtProvider jwtProvider) : ControllerBase
+public class AuthController(IAuthService authService, JwtProvider jwtProvider) : ControllerBase
 {
     /// <summary>
     /// 	Вход в систему.

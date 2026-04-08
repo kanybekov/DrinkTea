@@ -1,4 +1,4 @@
-﻿using DrinkTea.BL.Services;
+﻿using DrinkTea.BL.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DrinkTea.Shared.Models.Requests;
@@ -7,7 +7,7 @@ using DrinkTea.Shared.Models.Responses;
 
 [ApiController]
 [Route("api/[controller]")]
-public class BrewingController(BrewingService service) : ControllerBase
+public class BrewingController(IBrewingService service) : ControllerBase
 {
     /// <summary>
     /// 	Создать новую заварку на компанию.

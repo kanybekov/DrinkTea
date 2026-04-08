@@ -44,4 +44,9 @@ public interface ITeaRepository
     /// 	Добавляет новую запись в историю цен.
     /// </summary>
     Task AddPriceAsync(TeaPrice price, IDbTransaction transaction);
+
+    /// <summary>
+    /// Adds a price snapshot entry without exposing SQL to services.
+    /// </summary>
+    Task AddPriceSnapshotAsync(Guid teaId, decimal brewPrice, decimal salePrice, IDbTransaction transaction);
 }

@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: drinktea_db
+    restart: always
+    environment:
+      POSTGRES_DB: drinktea_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d drinktea_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrator:
+    build:
+      context: .
+      dockerfile: DrinkTea.Migrator/Dockerfile
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Database=drinktea_db;Username=user;Password=password
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: DrinkTea.Api/Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Database=drinktea_db;Username=user;Password=password
+      - ASPNETCORE_ENVIRONMENT=Production
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: .
+      dockerfile: DrinkTea.Frontend/Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

@@ -1,0 +1,248 @@
+﻿@page "/"
+@page "/dashboard"
+@attribute [Authorize(Roles = "Master")]
+
+@using DrinkTea.Shared.Models.Responses
+@using DrinkTea.Frontend.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@implements IDisposable
+@inject IVisitsApiService VisitsApi
+@inject IBrewingApiService BrewingApi
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="container-fluid mt-4 px-4">
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white shadow-sm rounded-3 border-bottom">
+        <div>
+            <h2 class="fw-bold m-0"><i class="bi bi-shop text-success me-2"></i>Зал</h2>
+            <div class="text-muted small">
+                Гостей: <span class="badge bg-secondary">@(activeVisits?.Count ?? 0)</span> |
+                Чайников: <span class="badge bg-primary">@(activeSessions?.Count ?? 0)</span>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-lg shadow-sm" @onclick='() => Nav.NavigateTo("/brewing/new")'>
+                <i class="bi bi-plus-circle me-1"></i> Новая заварка
+            </button>
+            <button class="btn btn-success btn-lg shadow-sm" @onclick='() => Nav.NavigateTo("/checkin")'>
+                <i class="bi bi-person-plus me-1"></i> Новый гость
+            </button>
+        </div>
+    </div>
+
+    <!-- БЛОК 1: ГОСТИ В ЗАЛЕ (КАРТОЧКИ) -->
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4 mb-5">
+        @if (activeVisits == null)
+        {
+            <div class="col-12 text-center py-5"><div class="spinner-border text-success"></div></div>
+        }
+        else if (!activeVisits.Any())
+        {
+            <div class="col-12 text-center py-5 bg-white rounded-3 border">
+                <p class="text-muted m-0">В зале пока нет открытых счетов.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var v in activeVisits)
+            {
+                <div class="col">
+                    <div class="card h-100 shadow-sm border-0 border-top border-4 @(v.UnpaidDebt > 1500 ? "border-danger" : "border-success")">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between mb-2">
+                                <h6 class="fw-bold text-truncate">@(string.IsNullOrEmpty(v.UserName) ? v.Note : v.UserName)</h6>
+                                <span class="badge bg-light text-dark border">@v.StartTime.ToShortTimeString()</span>
+                            </div>
+                            <div class="bg-light p-2 rounded text-center mb-2">
+                                <div class="h3 fw-bold m-0 @(v.UnpaidDebt > 0 ? "text-danger" : "")">@v.UnpaidDebt.ToString("N0") ₽</div>
+                            </div>
+                            @if (v.UserDeposit > 0)
+                            {
+                                <small class="text-success fw-bold"><i class="bi bi-wallet2"></i> Депозит: @v.UserDeposit ₽</small>
+                            }
+                        </div>
+                        <div class="card-footer bg-white border-0 d-flex gap-2 pb-3">
+                            <button class="btn btn-sm btn-outline-secondary w-100" @onclick='() => Nav.NavigateTo($"/visit/{v.Id}")'>Чек</button>
+
+                            @if (v.UserId.HasValue)
+                            {
+                                <button class="btn btn-sm btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-1"
+                                        @onclick='() => Nav.NavigateTo($"/user/{v.UserId.Value}/topup")'
+                                        title="Пополнить баланс">
+                                    <i class="bi bi-wallet2"></i>
+                                    <span class="d-none d-xl-inline">Пополнить</span>
+                                </button>
+                            }
+
+                            <button class="btn btn-sm btn-success w-100" @onclick='() => Nav.NavigateTo($"/checkout/{v.Id}")'>Оплата</button>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    <!-- БЛОК 2: ТЕКУЩИЕ ЗАВАРКИ (ТАБЛИЦА) -->
+    <div class="bg-white shadow-sm rounded-4 p-4 mb-5">
+        <h4 class="fw-bold mb-4 text-primary"><i class="bi bi-fire me-2"></i>Сейчас на столах</h4>
+        
+        @if (activeSessions == null)
+        {
+            <div class="text-center"><div class="spinner-border spinner-border-sm"></div></div>
+        }
+        else if (!activeSessions.Any())
+        {
+            <div class="text-muted py-3">Нет активных заварок. Начните новую, чтобы она появилась здесь.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle table-hover border-top">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Сорт чая</th>
+                            <th>Граммов</th>
+                            <th>Участники</th>
+                            <th>Заварено в</th>
+                            <th class="text-end">Управление</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in activeSessions)
+                        {
+                            <tr>
+                                <td class="fw-bold">@s.TeaName</td>
+                                <td>@s.Grams.ToString("0.0") г</td>
+                                <td>
+                                    @foreach (var p in s.Participants)
+                                    {
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle me-1 position-relative pe-4">
+                                            <i class="bi bi-person-fill small"></i> @p.Name
+
+                                            @* Кнопка удаления участника теперь использует p.VisitId *@
+                                            <button type="button"
+                                                    class="btn-close position-absolute top-50 end-0 translate-middle-y me-1"
+                                                    style="font-size: 0.5rem; filter: invert(0.5);"
+                                                    @onclick="() => RemoveFromSession(s.Id, p.VisitId)"
+                                                    title="Удалить из этой заварки">
+                                            </button>
+                                        </span>
+                                    }
+                                </td>
+
+                                <td class="text-muted">@s.CreatedAt.ToShortTimeString()</td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <!-- Допили (Зеленая) -->
+                                        <button class="btn btn-sm btn-success d-flex align-items-center gap-1 shadow-sm"
+                                                @onclick="() => FinishBrewing(s.Id)" title="Завершить">
+                                            <i class="bi bi-check-lg"></i>
+                                            <span class="d-none d-xxl-inline">Допили</span>
+                                        </button>
+
+                                        <!-- Подсадить (Синяя) -->
+                                        <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 shadow-sm"
+                                                @onclick='() => Nav.NavigateTo($"/brewing/join/{s.Id}")' title="Подсадить">
+                                            <i class="bi bi-person-plus-fill"></i>
+                                            <span class="d-none d-xxl-inline">Подсадить</span>
+                                        </button>
+
+                                        <!-- Отмена (Красная) -->
+                                        <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 shadow-sm"
+                                                @onclick="() => CancelBrewing(s.Id)" title="Удалить ошибку">
+                                            <i class="bi bi-trash3-fill"></i>
+                                            <span class="d-none d-xxl-inline">Отмена</span>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<ActiveVisitDto>? activeVisits;
+    private List<ActiveBrewingDto>? activeSessions;
+    private global::System.Threading.Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        
+        // Запускаем авто-обновление каждые 10 секунд
+        _timer = new global::System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadData();
+                StateHasChanged(); // Принудительно перерисовываем UI
+            });
+        }, null, 10000, 10000);
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            activeVisits = await VisitsApi.GetActiveAsync();
+            activeSessions = await BrewingApi.GetActiveAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка загрузки: {ex.Message}");
+        }
+    }
+
+    // МЕТОДЫ УПРАВЛЕНИЯ (теперь со знанием ID участника из Шага 1)
+    
+    private async Task FinishBrewing(Guid sessionId)
+    {
+        // Отправляем PATCH запрос на бэкенд
+        var response = await BrewingApi.FinishAsync(sessionId);
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadData(); // Мгновенно обновляем списки на экране
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "Ошибка при завершении заварки");
+        }
+    }
+
+    // 2. Полная отмена (удаление заварки, возврат чая на склад)
+    private async Task CancelBrewing(Guid sessionId)
+    {
+        // Добавим подтверждение, чтобы мастер не нажал случайно
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", "Вы уверены? Заварка будет удалена, а чай вернется на склад.");
+        if (!confirmed) return;
+
+        var response = await BrewingApi.CancelAsync(sessionId);
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadData();
+        }
+    }
+
+    // 3. Удаление одного человека из чайника (крестик на бейдже)
+    private async Task RemoveFromSession(Guid sessionId, Guid visitId)
+    {
+        // Используем DELETE запрос к нашему API участников
+        var response = await BrewingApi.RemoveParticipantAsync(sessionId, visitId);
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadData();
+        }
+    }
+
+    // КРИТИЧЕСКИ ВАЖНО: Очистка при закрытии страницы
+    public void Dispose()
+    {
+        _timer?.Dispose();
+        Console.WriteLine("Таймер дашборда остановлен.");
+    }
+}

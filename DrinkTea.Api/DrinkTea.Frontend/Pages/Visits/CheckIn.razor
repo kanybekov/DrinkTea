@@ -1,0 +1,172 @@
+﻿@page "/checkin"
+@attribute [Authorize(Roles = "Master")]
+
+@using DrinkTea.Shared.Models.Requests
+@using DrinkTea.Shared.Models.Responses
+@using DrinkTea.Frontend.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@inject IUsersApiService UsersApi
+@inject IVisitsApiService VisitsApi
+@inject NavigationManager Nav
+
+<div class="container mt-4" style="max-width: 500px;">
+    <div class="card shadow border-0 p-4 rounded-4">
+        <h3 class="fw-bold mb-4 text-center">Регистрация гостя</h3>
+
+        <!-- ПОИСК КЛИЕНТА -->
+        <div class="mb-4 position-relative">
+            <label class="form-label text-muted small fw-bold text-uppercase">Поиск в базе клиентов</label>
+            <div class="input-group input-group-lg">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+                <input type="text"
+                       class="form-control border-start-0 shadow-none"
+                       placeholder="Имя или логин..."
+                       @bind="searchText"
+                       @bind:event="oninput"
+                       @onfocus="() => showResults = true" />
+            </div>
+
+            @if (showResults && !string.IsNullOrWhiteSpace(searchText))
+            {
+                <div class="list-group position-absolute w-100 shadow-lg z-3 mt-1" style="max-height: 250px; overflow-y: auto;">
+                    @{
+                        var filtered = users?.Where(u => u.FullName.Contains(searchText, StringComparison.OrdinalIgnoreCase)).ToList();
+                    }
+
+                    @if (filtered != null && filtered.Any())
+                    {
+                        @foreach (var u in filtered)
+                        {
+                            <button type="button"
+                                    class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3"
+                                    @onclick="() => SelectUser(u)">
+                                <div>
+                                    <div class="fw-bold">@u.FullName</div>
+                                    <small class="text-muted">Баланс: @u.Balance.ToString("N0") ₽</small>
+                                </div>
+                                <i class="bi bi-plus-lg text-success"></i>
+                            </button>
+                        }
+                    }
+                    else
+                    {
+                        <div class="list-group-item text-muted small p-3">Никого не нашли...</div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- ВЫБРАННЫЙ КЛИЕНТ -->
+        @if (selectedUser != null)
+        {
+            <div class="alert alert-success d-flex justify-content-between align-items-center p-3 animate__animated animate__fadeIn mb-4">
+                <div>
+                    <i class="bi bi-person-check-fill fs-5 me-2"></i>
+                    <strong>@selectedUser.FullName</strong>
+                </div>
+                <button type="button" class="btn-close" @onclick="ClearSelection"></button>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-light border text-center py-2 mb-4 small text-muted">
+                Анонимный гость (выберите клиента выше, если есть)
+            </div>
+        }
+
+        <!-- ЗАМЕТКА / СТОЛ -->
+        <div class="mb-4">
+            <label class="form-label text-muted small fw-bold text-uppercase">Заметка / Номер стола</label>
+            <input @bind="request.Note"
+                   @bind:event="oninput"
+                   class="form-control form-control-lg"
+                   placeholder="Например: Стол 3" />
+            <small class="text-muted mt-1 d-block">Помогает мастеру отличить анонимных гостей.</small>
+        </div>
+
+        @if (error != null)
+        {
+            <div class="alert alert-danger p-2 small">@error</div>
+        }
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-light flex-grow-1" @onclick='() => Nav.NavigateTo("/")'>Отмена</button>
+            <button class="btn btn-success flex-grow-1 fw-bold"
+                    @onclick="HandleCheckIn"
+                    disabled="@(IsInvalid || loading)">
+                @if (loading)
+                {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                Открыть счет
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private CheckInRequest request = new();
+    private List<UserListItemDto>? users;
+    
+    private string searchText = "";
+    private bool showResults = false;
+    private UserListItemDto? selectedUser;
+
+    private string? error;
+    private bool loading;
+
+    // Кнопка активна, если выбран юзер ИЛИ написана заметка
+    private bool IsInvalid => request.UserId == null && string.IsNullOrWhiteSpace(request.Note);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            users = await UsersApi.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Ошибка загрузки юзеров: " + ex.Message);
+        }
+    }
+
+    private void SelectUser(UserListItemDto u)
+    {
+        selectedUser = u;
+        request.UserId = u.Id;
+        searchText = "";
+        showResults = false;
+        
+        // Если заметка пустая, можно подставить имя для удобства
+        if (string.IsNullOrWhiteSpace(request.Note))
+        {
+            request.Note = u.FullName;
+        }
+    }
+
+    private void ClearSelection()
+    {
+        selectedUser = null;
+        request.UserId = null;
+        request.Note = "";
+    }
+
+    private async Task HandleCheckIn()
+    {
+        loading = true;
+        error = null;
+
+        var response = await VisitsApi.CheckInAsync(request);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            Nav.NavigateTo("/");
+        }
+        else
+        {
+            var msg = await response.Content.ReadAsStringAsync();
+            error = string.IsNullOrWhiteSpace(msg) ? "Ошибка. Возможно, гость уже в клубе." : msg;
+        }
+        loading = false;
+    }
+}
